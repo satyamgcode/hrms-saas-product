@@ -3,12 +3,17 @@ import MainLayout from '../components/MainLayout.vue';
 
 const routes = [
   {
+    path: '/signin',
+    name: 'signin',
+    component: () => import('../components/SignIn.vue'),
+  },
+  {
     path: '/',
     component: MainLayout,
     children: [
       {
         path: '',
-        redirect: '/overview',
+        redirect: '/signin',
       },
       {
         path: 'overview',
@@ -24,11 +29,6 @@ const routes = [
         path: 'holidays',
         name: 'holidays',
         component: () => import('../components/Holidays.vue'),
-      },
-      {
-        path: 'performance',
-        name: 'performance',
-        component: () => import('../components/PerformanceTab.vue'),
       },
       {
         path: 'users',
@@ -49,11 +49,6 @@ const routes = [
         path: 'documents',
         name: 'documents',
         component: () => import('../components/EducationTab.vue'),
-      },
-      {
-        path: 'chatroom',
-        name: 'chatroom',
-        component: () => import('../components/ChatRoom.vue'),
       },
     ],
   },

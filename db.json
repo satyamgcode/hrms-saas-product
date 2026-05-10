@@ -1,0 +1,191 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "email": "admin@example.com",
+      "password": "admin",
+      "name": "Satyam Gupta",
+      "role": "admin",
+      "companyId": "1",
+      "designation": "Senior Software Engineer",
+      "department": "Software Development",
+      "phone": "+123 456 7890",
+      "website": "www.satyamgcode.com",
+      "location": "New York, USA",
+      "joiningDate": "2022-01-15",
+      "team": 5,
+      "awards": 3,
+      "projects": 10,
+      "clients": 15,
+      "bio": "Satyam Gupta is an experienced software engineer specializing in developing scalable web applications with a passion for learning new technologies.",
+      "socialLinks": {
+        "facebook": "https://facebook.com/satyam",
+        "twitter": "https://twitter.com/satyam",
+        "linkedin": "https://linkedin.com/in/satyam"
+      },
+      "avatar": "https://randomuser.me/api/portraits/men/1.jpg",
+      "currentAddress": "4567 Maple Avenue, Los Angeles, CA, USA",
+      "permanentAddress": "1234 Elm Street, New York, NY, USA",
+      "officeAddress": "7890 Pine Road, San Francisco, CA, USA"
+    },
+    {
+      "id": "2",
+      "email": "employee@example.com",
+      "password": "employee",
+      "name": "Jane Doe",
+      "role": "employee",
+      "companyId": "1",
+      "designation": "UI/UX Designer",
+      "department": "Creative Design",
+      "phone": "+123 456 7891",
+      "website": "www.janedesigns.com",
+      "location": "San Francisco, USA",
+      "joiningDate": "2023-05-20",
+      "team": 3,
+      "awards": 1,
+      "projects": 5,
+      "clients": 8,
+      "bio": "Jane is a creative designer with a focus on user-centric interfaces and modern aesthetics.",
+      "socialLinks": {
+        "facebook": "https://facebook.com/jane",
+        "twitter": "https://twitter.com/jane",
+        "linkedin": "https://linkedin.com/in/jane"
+      },
+      "avatar": "https://randomuser.me/api/portraits/women/2.jpg",
+      "currentAddress": "888 Oak Lane, Austin, TX, USA",
+      "permanentAddress": "222 Birch Street, Portland, OR, USA",
+      "officeAddress": "7890 Pine Road, San Francisco, CA, USA"
+    }
+  ],
+  "companies": [
+    {
+      "id": "1",
+      "name": "TechCorp Solutions",
+      "description": "Leading the way in digital transformation and innovative software solutions.",
+      "logo": "https://placehold.co/100x100/F3901B/white?text=TC",
+      "address": "123 Innovation Drive, Silicon Valley, CA",
+      "phone": "+1 (555) 123-4567",
+      "email": "info@techcorp.com",
+      "website": "www.techcorp.com"
+    }
+  ],
+  "holidays": [
+    {
+      "id": "1",
+      "name": "New Year's Day",
+      "date": "2026-01-01",
+      "type": "Public"
+    },
+    {
+      "id": "2",
+      "name": "Independence Day",
+      "date": "2026-08-15",
+      "type": "National"
+    },
+    {
+      "id": "3",
+      "name": "Christmas Day",
+      "date": "2026-12-25",
+      "type": "Public"
+    },
+    {
+      "id": "4",
+      "name": "Company Anniversary",
+      "date": "2026-10-10",
+      "type": "Optional"
+    }
+  ],
+  "policies": [
+    {
+      "id": "1",
+      "name": "Company Terms and Conditions",
+      "url": "https://example.com/terms.pdf",
+      "category": "Legal"
+    },
+    {
+      "id": "2",
+      "name": "Employee Conduct Policy",
+      "url": "https://example.com/conduct.pdf",
+      "category": "HR"
+    },
+    {
+      "id": "3",
+      "name": "Work From Home Policy",
+      "url": "https://example.com/wfh.pdf",
+      "category": "Operations"
+    }
+  ],
+  "user_documents": [
+    {
+      "id": "1",
+      "userId": "1",
+      "type": "CV",
+      "name": "satyam_cv.pdf",
+      "url": "#",
+      "lastModified": "2026-05-01"
+    },
+    {
+      "id": "2",
+      "userId": "1",
+      "type": "PAN Card",
+      "name": "pan_card.jpg",
+      "url": "#",
+      "lastModified": "2026-05-02"
+    },
+    {
+      "userId": "1",
+      "type": "Offer Letter",
+      "name": "Screenshot 2025-10-01 133258.png",
+      "url": "#",
+      "lastModified": "10/05/2026",
+      "id": "3lZhk2slyiA"
+    }
+  ],
+  "performance": [
+    {
+      "id": "1",
+      "userId": "1",
+      "period": "Q1 2026",
+      "rating": 4.8,
+      "feedback": "Excellent performance in project delivery."
+    },
+    {
+      "id": "2",
+      "userId": "2",
+      "period": "Q1 2026",
+      "rating": 4.5,
+      "feedback": "Great creativity and team collaboration."
+    }
+  ],
+  "messages": [
+    {
+      "id": "1",
+      "senderId": "1",
+      "text": "Hi Jane, how is the new design coming along?",
+      "timestamp": "2026-05-09T10:00:00Z"
+    },
+    {
+      "id": "2",
+      "senderId": "2",
+      "text": "Hi Satyam, it's looking good! I'll share the prototypes by EOD.",
+      "timestamp": "2026-05-09T10:05:00Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "1",
+      "userId": "1",
+      "title": "Meeting Reminder",
+      "message": "Upcoming team sync at 2 PM",
+      "read": false
+    },
+    {
+      "id": "2",
+      "userId": "2",
+      "title": "Policy Update",
+      "message": "The WFH policy has been updated.",
+      "read": true
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}

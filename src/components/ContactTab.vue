@@ -1,35 +1,66 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { getApiUrl } from '../services/api';
 import EmployeePage from './EmployeePage.vue';
 
 const contactData = ref({
-  email: 'satyam.gupta@example.com',
-  phone: '+123 456 7890',
-  currentAddress: '4567 Maple Avenue, Los Angeles, CA, USA',
-  permanentAddress: '1234 Elm Street, New York, NY, USA',
-  officeAddress: '7890 Pine Road, San Francisco, CA, USA',
+  email: 'Loading...',
+  phone: '',
+  currentAddress: '',
+  permanentAddress: '',
+  officeAddress: '',
   socialLinks: {
-    linkedin: 'https://linkedin.com/in/johndoe',
-    twitter: 'https://twitter.com/johndoe',
-    facebook: 'https://facebook.com/johndoe',
+    linkedin: '#',
+    twitter: '#',
+    facebook: '#',
   },
 });
 
 const isEditing = ref(false);
 
+onMounted(async () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) {
+      const response = await fetch(getApiUrl(`users/${user.id}`));
+      if (response.ok) {
+        const data = await response.json();
+        contactData.value = {
+          ...data,
+          currentAddress: data.currentAddress || 'N/A',
+          permanentAddress: data.permanentAddress || 'N/A',
+          officeAddress: data.officeAddress || 'HQ Tech Park, Suite 101'
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching contact details:', error);
+  }
+});
+
 const toggleEdit = () => {
   isEditing.value = !isEditing.value;
 };
 
-const saveChanges = () => {
-  console.log('Saving changes:', contactData.value);
-  isEditing.value = false;
+const saveChanges = async () => {
+  try {
+    const response = await fetch(getApiUrl(`users/${contactData.value.id}`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(contactData.value)
+    });
+    if (response.ok) {
+      isEditing.value = false;
+    }
+  } catch (error) {
+    console.error('Error saving contact changes:', error);
+  }
 };
 </script>
 
 <template>
   <EmployeePage>
-    <div class="max-w-full mx-auto mt-8 bg-white p-8 rounded-lg shadow-md ">
+    <div class="max-w-full mx-auto mt-1 bg-white py-8 px-4 rounded-lg shadow-md ">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-semibold">Contact Details</h2>
         <button @click="toggleEdit" class="text-gray-500 hover:text-gray-700">
@@ -97,7 +128,7 @@ const saveChanges = () => {
 
       <div class="mt-6">
         <h3 class="text-lg font-semibold mb-2">Social Links</h3>
-        <div class="flex gap-4">
+        <div class="flex flex-wrap gap-4">
           <a :href="contactData.socialLinks.linkedin" target="_blank" class="flex items-center gap-2 text-blue-700">
             <i class="mdi mdi-linkedin text-2xl"></i> LinkedIn
           </a>

@@ -1,23 +1,24 @@
 <script setup>
-import { onBeforeMount, ref } from 'vue';
+import { onBeforeMount, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 
 const employeeDetails = [
    { text: 'Overview', icon: 'mdi mdi-view-dashboard', route: '/overview' },
-   { text: 'Details', icon: 'mdi mdi-chart-bar', route: '/details' },
-   { text: 'Contact', icon: 'mdi mdi-calendar', route: '/contact' },
-   { text: 'Documents', icon: 'mdi mdi-account', route: '/documents' },
-   // { text: 'Experience', icon: 'mdi mdi-chat', route: '/experience' },
-   // { text: 'Portfolio', icon: 'mdi mdi-email', route: '/portfolio' },
+   { text: 'Details', icon: 'mdi mdi-card-account-details', route: '/details' },
+   { text: 'Contact', icon: 'mdi mdi-phone', route: '/contact' },
+   { text: 'Documents', icon: 'mdi mdi-file-document', route: '/documents' },
 ];
 
 const activeTab = ref('');
 const router = useRouter();
 const route = useRoute();
-console.log(route.path)
 
 onBeforeMount(() => {
    activeTab.value = route.path;
+});
+
+watch(() => route.path, (newPath) => {
+   activeTab.value = newPath;
 });
 
 const setActiveTab = (tab) => {
@@ -27,23 +28,41 @@ const setActiveTab = (tab) => {
 </script>
 
 <template>
-   <div class="p-4 text-gray-800">
-      <div class="flex items-center justify-between">
-         <p class="text-2xl font-semibold">Employee Data</p>
-         <div class="flex items-center gap-2 sm:mr-36">
-            <div 
-               v-for="employee in employeeDetails" 
-               :key="employee.text" 
-               @click="setActiveTab(employee)"
-               :class="[
-                  'cursor-pointer p-1 px-2 rounded-md',
-                  activeTab === employee.route ? 'bg-purple-200 text-purple-700' : 'hover:bg-gray-200'
-               ]"
-            >
-               <i :class="employee.icon"></i> {{ employee.text }}
-            </div>
+   <div class="space-y-6">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-100 pb-2">
+         <div>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight">Employee Profile</h1>
+            <p class="text-gray-500 font-medium">Manage and view detailed employee information</p>
          </div>
+
+         <div
+            class="flex items-center justify-between md:justify-start gap-1 bg-gray-100/50 p-1 rounded-2xl overflow-x-auto no-scrollbar">
+            <button v-for="employee in employeeDetails" :key="employee.text" @click="setActiveTab(employee)" :class="[
+               'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap',
+               activeTab === employee.route
+                  ? 'bg-white text-brand-purple shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+            ]">
+               <i :class="[employee.icon, 'text-lg']"></i>
+               <span class="sm:block hidden">{{ employee.text }}</span>
+            </button>
+         </div>
+
       </div>
-      <slot></slot>
+
+      <div class="">
+         <slot></slot>
+      </div>
    </div>
 </template>
+
+<style scoped>
+.no-scrollbar::-webkit-scrollbar {
+   display: none;
+}
+
+.no-scrollbar {
+   -ms-overflow-style: none;
+   scrollbar-width: none;
+}
+</style>
