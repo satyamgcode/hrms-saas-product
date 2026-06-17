@@ -132,7 +132,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { getApiUrl } from '../services/api';
+import { getCompany } from '../services/api';
+import { authService } from '../services/authService';
 
 const router = useRouter();
 const email = ref('admin@example.com');
@@ -144,15 +145,17 @@ const showPassword = ref(false);
 
 onMounted(async () => {
   try {
-    const response = await fetch(getApiUrl('companies/1'));
-    if (response.ok) {
-      company.ref = await response.json();
-      // Correcting the assignment
-      company.value = company.ref;
-    }
+    const data = await getCompany(1);
+    company.value = data || {
+      name: 'HRMS Software',
+      description: 'Your complete workforce management solution.',
+      logo: 'https://placehold.co/100x100/F3901B/white?text=HR',
+      address: 'Cloud Based System',
+      phone: '+1 800 HRMS',
+      website: 'www.hrms.com'
+    };
   } catch (err) {
     console.error('Failed to fetch company details:', err);
-    // Fallback company info if server is not running yet
     company.value = {
       name: 'HRMS Software',
       description: 'Your complete workforce management solution.',
@@ -169,19 +172,10 @@ const handleSignIn = async () => {
   error.value = '';
 
   try {
-    const response = await fetch(getApiUrl(`users?email=${email.value}&password=${password.value}`));
-    const users = await response.json();
-
-    if (users.length > 0) {
-      const user = users[0];
-      localStorage.setItem('user', JSON.stringify(user));
-      // Redirect based on role or just to dashboard
-      router.push('/overview');
-    } else {
-      error.value = 'Invalid email or password. Please try again.';
-    }
+    await authService.signIn(email.value, password.value);
+    router.push('/overview');
   } catch (err) {
-    error.value = 'Connection error. Please ensure the server is running.';
+    error.value = err?.message || 'Login failed. Please check your credentials.';
   } finally {
     loading.value = false;
   }

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getApiUrl } from '../services/api';
+import { getCurrentUser, getUserProfile } from '../services/api';
 import EmployeePage from './EmployeePage.vue';
 
 const employeeData = ref({
@@ -27,12 +27,15 @@ const employeeData = ref({
 
 onMounted(async () => {
     try {
-        const storedUser = JSON.parse(localStorage.getItem('user'));
-        if (storedUser && storedUser.id) {
-            const response = await fetch(getApiUrl(`users/${storedUser.id}`));
-            if (response.ok) {
-                const data = await response.json();
-                employeeData.value = data;
+        const user = await getCurrentUser();
+        if (user) {
+            const profile = await getUserProfile({ email: user.email });
+            if (profile) {
+                employeeData.value = {
+                    ...profile,
+                    role: profile.role || profile.designation || 'Member',
+                    avatar: profile.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || user.email)}&background=8A3EEA&color=fff`,
+                };
             }
         }
     } catch (error) {
@@ -205,4 +208,4 @@ const stats = [
     background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0);
     background-size: 24px 24px;
 }
-</style>
+</style>

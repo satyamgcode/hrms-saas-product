@@ -1,16 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getApiUrl } from '../services/api';
+import { getHolidays } from '../services/api';
 
 const holidays = ref([]);
 const loading = ref(true);
 
 onMounted(async () => {
     try {
-        const response = await fetch(getApiUrl('holidays'));
-        if (response.ok) {
-            holidays.value = await response.json();
-        }
+        holidays.value = await getHolidays();
     } catch (error) {
         console.error('Error fetching holidays:', error);
     } finally {

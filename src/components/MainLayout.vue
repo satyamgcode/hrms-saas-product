@@ -3,7 +3,8 @@ import defaultLogo from '../assets/home-logo.svg';
 import { useRouter, useRoute } from 'vue-router';
 import MainHeader from './headers/MainHeader.vue';
 import { ref, watch, onMounted } from 'vue';
-import { getApiUrl } from '../services/api';
+import { getCurrentSession, getUserProfile, getCompany } from '../services/api';
+import { supabase } from '../utils/supabase';
 
 import employee from '../assets/icons/employee.svg';
 import user from '../assets/icons/user.svg';
@@ -21,26 +22,36 @@ const router = useRouter();
 const route = useRoute();
 
 onMounted(async () => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  if (user) {
-    loggedInUser.value = user;
-    try {
-      const response = await fetch(getApiUrl(`companies/${user.companyId}`));
-      if (response.ok) {
-        const companyData = await response.json();
-        orgName.value = companyData.name;
-        orgLogo.value = companyData.logo;
-      }
-    } catch (error) {
-      console.error('Error fetching company info:', error);
-    }
-  } else {
+  const session = await getCurrentSession();
+  const authUser = session?.user;
+
+  if (!authUser) {
     router.push('/signin');
+    return;
+  }
+
+  const profile = await getUserProfile({ email: authUser.email });
+  const companyId = profile?.companyId || 1;
+
+  loggedInUser.value = {
+    name: profile?.full_name || authUser.user_metadata?.full_name || authUser.email || 'User',
+    role: profile?.role || 'Employee',
+    email: authUser.email,
+  };
+
+  try {
+    const companyData = await getCompany(companyId);
+    if (companyData) {
+      orgName.value = companyData.name;
+      orgLogo.value = companyData.logo;
+    }
+  } catch (error) {
+    console.error('Error fetching company info:', error);
   }
 });
 
-const handleLogout = () => {
-  localStorage.removeItem('user');
+const handleLogout = async () => {
+  await supabase.auth.signOut();
   router.push('/signin');
 };
 

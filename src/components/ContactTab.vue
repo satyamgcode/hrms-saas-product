@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getApiUrl } from '../services/api';
+import { getCurrentUser, getUserProfile, updateUserProfile } from '../services/api';
 import EmployeePage from './EmployeePage.vue';
 
 const contactData = ref({
@@ -20,11 +20,10 @@ const isEditing = ref(false);
 
 onMounted(async () => {
   try {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const user = await getCurrentUser();
     if (user) {
-      const response = await fetch(getApiUrl(`users/${user.id}`));
-      if (response.ok) {
-        const data = await response.json();
+      const data = await getUserProfile({ email: user.email });
+      if (data) {
         contactData.value = {
           ...data,
           currentAddress: data.currentAddress || 'N/A',
@@ -44,12 +43,9 @@ const toggleEdit = () => {
 
 const saveChanges = async () => {
   try {
-    const response = await fetch(getApiUrl(`users/${contactData.value.id}`), {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(contactData.value)
-    });
-    if (response.ok) {
+    const updated = await updateUserProfile(contactData.value.id, contactData.value);
+    if (updated) {
+      contactData.value = { ...contactData.value, ...updated };
       isEditing.value = false;
     }
   } catch (error) {

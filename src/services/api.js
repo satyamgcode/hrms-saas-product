@@ -1,44 +1,92 @@
-/**
- * API Service Configuration
- * Centralized location for handling API requests and base URLs
- */
+import { supabase } from '../utils/supabase';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-
-/**
- * Helper to build full API URLs
- * @param {string} endpoint - The endpoint path (e.g., '/users' or 'companies/1')
- * @returns {string} - The full URL
- */
-export const getApiUrl = (endpoint) => {
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${API_BASE_URL}${cleanEndpoint}`;
-};
-
-/**
- * Standard fetch wrapper for consistent error handling and future flexibility
- * (e.g., adding auth headers, logging, etc.)
- */
-export const apiFetch = async (endpoint, options = {}) => {
-  const url = getApiUrl(endpoint);
-  
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `API Error: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error(`API Fetch Error [${url}]:`, error);
+const throwIfError = (error) => {
+  if (error) {
+    console.error('Supabase error:', error);
     throw error;
   }
+};
+
+export const getCurrentSession = async () => {
+  const { data, error } = await supabase.auth.getSession();
+  throwIfError(error);
+  return data.session;
+};
+
+export const getCurrentUser = async () => {
+  const session = await getCurrentSession();
+  return session?.user ?? null;
+};
+
+export const getUserProfile = async ({ userId, email } = {}) => {
+  let query = supabase.from('users').select('*').maybeSingle();
+  if (userId) {
+    query = query.eq('id', userId);
+  }
+  if (email) {
+    query = query.eq('email', email);
+  }
+
+  const { data, error } = await query;
+  throwIfError(error);
+  return data;
+};
+
+export const updateUserProfile = async (userId, payload) => {
+  const { data, error } = await supabase.from('users').update(payload).eq('id', userId).select().maybeSingle();
+  throwIfError(error);
+  return data;
+};
+
+export const getCompany = async (companyId = 1) => {
+  const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle();
+  throwIfError(error);
+  return data;
+};
+
+export const getPolicies = async () => {
+  const { data, error } = await supabase.from('policies').select('*');
+  throwIfError(error);
+  return data ?? [];
+};
+
+export const createPolicy = async (policy) => {
+  const { data, error } = await supabase.from('policies').insert(policy).select().single();
+  throwIfError(error);
+  return data;
+};
+
+export const getHolidays = async () => {
+  const { data, error } = await supabase.from('holidays').select('*');
+  throwIfError(error);
+  return data ?? [];
+};
+
+export const getUsers = async () => {
+  const { data, error } = await supabase.from('users').select('*');
+  throwIfError(error);
+  return data ?? [];
+};
+
+export const getUserDocuments = async (userId) => {
+  const { data, error } = await supabase.from('user_documents').select('*').eq('userId', userId);
+  throwIfError(error);
+  return data ?? [];
+};
+
+export const createDocument = async (document) => {
+  const { data, error } = await supabase.from('user_documents').insert(document).select().single();
+  throwIfError(error);
+  return data;
+};
+
+export const updateDocument = async (documentId, payload) => {
+  const { data, error } = await supabase.from('user_documents').update(payload).eq('id', documentId).select().single();
+  throwIfError(error);
+  return data;
+};
+
+export const deleteDocument = async (documentId) => {
+  const { error } = await supabase.from('user_documents').delete().eq('id', documentId);
+  throwIfError(error);
 };

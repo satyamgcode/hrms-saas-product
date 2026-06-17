@@ -1,16 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getApiUrl } from '../services/api';
+import { getUsers } from '../services/api';
 
 const users = ref([]);
 const loading = ref(true);
 
 onMounted(async () => {
     try {
-        const response = await fetch(getApiUrl('users'));
-        if (response.ok) {
-            users.value = await response.json();
-        }
+        users.value = await getUsers();
     } catch (error) {
         console.error('Error fetching users:', error);
     } finally {

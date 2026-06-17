@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getApiUrl } from '../services/api';
+import { getCurrentUser, getUserDocuments, createDocument, updateDocument as updateDocumentApi, deleteDocument as deleteDocumentApi } from '../services/api';
 import EmployeePage from './EmployeePage.vue';
 
 const documentTypes = [
@@ -36,12 +36,9 @@ onMounted(async () => {
 
 const fetchDocuments = async () => {
   try {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const user = await getCurrentUser();
     if (user) {
-      const response = await fetch(getApiUrl(`user_documents?userId=${user.id}`));
-      if (response.ok) {
-        uploadedDocuments.value = await response.json();
-      }
+      uploadedDocuments.value = await getUserDocuments(user.id);
     }
   } catch (error) {
     console.error('Error fetching documents:', error);
@@ -70,9 +67,9 @@ const handleFileUpload = (event) => {
 
 const saveDocument = async () => {
   if (selectedDocumentType.value && selectedFile.value) {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const user = await getCurrentUser();
     const newDoc = {
-      userId: user.id,
+      userId: user?.id,
       type: selectedDocumentType.value,
       name: selectedFile.value.name,
       url: '#',
@@ -80,17 +77,10 @@ const saveDocument = async () => {
     };
 
     try {
-      const response = await fetch(getApiUrl('user_documents'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newDoc)
-      });
-      if (response.ok) {
-        const savedDoc = await response.json();
-        uploadedDocuments.value.push(savedDoc);
-        selectedDocumentType.value = '';
-        selectedFile.value = null;
-      }
+      const savedDoc = await createDocument(newDoc);
+      uploadedDocuments.value.push(savedDoc);
+      selectedDocumentType.value = '';
+      selectedFile.value = null;
     } catch (error) {
       console.error('Error saving document:', error);
     }
@@ -109,14 +99,9 @@ const triggerUpdateFileUpload = (doc) => {
 
 const deleteDocument = async (doc) => {
   try {
-    const response = await fetch(getApiUrl(`user_documents/${doc.id}`), {
-      method: 'DELETE'
-    });
-    if (response.ok) {
-      const index = uploadedDocuments.value.indexOf(doc);
-      if (index !== -1) {
-        uploadedDocuments.value.splice(index, 1);
-      }
+      await deleteDocumentApi(doc.id);
+    if (index !== -1) {
+      uploadedDocuments.value.splice(index, 1);
     }
   } catch (error) {
     console.error('Error deleting document:', error);
@@ -133,18 +118,12 @@ const handleUpdateFile = async (event) => {
     };
 
     try {
-      const response = await fetch(getApiUrl(`user_documents/${documentToUpdate.value.id}`), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedDoc)
-      });
-      if (response.ok) {
-        const index = uploadedDocuments.value.findIndex(d => d.id === documentToUpdate.value.id);
-        if (index !== -1) {
-          uploadedDocuments.value[index] = updatedDoc;
-        }
-        documentToUpdate.value = null;
+      const savedDoc = await updateDocumentApi(documentToUpdate.value.id, updatedDoc);
+      const index = uploadedDocuments.value.findIndex(d => d.id === documentToUpdate.value.id);
+      if (index !== -1) {
+        uploadedDocuments.value[index] = savedDoc;
       }
+      documentToUpdate.value = null;
     } catch (error) {
       console.error('Error updating document:', error);
     }

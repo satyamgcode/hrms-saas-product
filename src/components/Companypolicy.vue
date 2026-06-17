@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getApiUrl } from '../services/api';
+import { getPolicies, createPolicy } from '../services/api';
 
 const fileInput = ref(null);
 const documents = ref([]);
@@ -8,10 +8,7 @@ const loading = ref(true);
 
 onMounted(async () => {
     try {
-        const response = await fetch(getApiUrl('policies'));
-        if (response.ok) {
-            documents.value = await response.json();
-        }
+        documents.value = await getPolicies();
     } catch (error) {
         console.error('Error fetching policies:', error);
     } finally {
@@ -28,20 +25,13 @@ const handleFileUpload = async (event) => {
     if (file) {
         const newDocument = {
             name: file.name,
-            url: '#', // In a real app, this would be the uploaded file URL
+            url: '#',
             category: 'General'
         };
         
         try {
-            const response = await fetch(getApiUrl('policies'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newDocument)
-            });
-            if (response.ok) {
-                const savedDoc = await response.json();
-                documents.value.push(savedDoc);
-            }
+            const savedDoc = await createPolicy(newDocument);
+            documents.value.push(savedDoc);
         } catch (error) {
             console.error('Error uploading document:', error);
         }

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import MainLayout from '../components/MainLayout.vue';
+import { supabase } from '../utils/supabase';
 
 const routes = [
   {
@@ -57,6 +58,26 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+router.beforeEach(async (to) => {
+  if (to.path === '/signin') {
+    return true;
+  }
+
+  const refreshToken = to.query.refresh_token;
+  if (refreshToken) {
+    await supabase.auth.setSession({ refresh_token: refreshToken.toString() });
+  }
+
+  const { data } = await supabase.auth.getSession();
+  const session = data?.session;
+
+  if (!session?.user) {
+    return { path: '/signin' };
+  }
+
+  return true;
 });
 
 export default router;

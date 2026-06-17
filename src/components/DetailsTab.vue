@@ -1,7 +1,7 @@
 <script setup>
 import EmployeePage from './EmployeePage.vue';
 import { ref, onMounted } from 'vue';
-import { getApiUrl } from '../services/api';
+import { getCurrentUser, getUserProfile, updateUserProfile } from '../services/api';
 
 const isEditing = ref(false);
 
@@ -30,19 +30,18 @@ const employeeData = ref({
 
 onMounted(async () => {
   try {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const user = await getCurrentUser();
     if (user) {
-      const response = await fetch(getApiUrl(`users/${user.id}`));
-      if (response.ok) {
-        const data = await response.json();
+      const data = await getUserProfile({ email: user.email });
+      if (data) {
         employeeData.value = {
           ...data,
-          role: data.designation,
+          role: data.designation || data.role || 'Member',
           department: data.department || 'Technology',
-          employeeId: `EMP${data.id.padStart(6, '0')}`,
+          employeeId: data.id ? `EMP${String(data.id).padStart(6, '0')}` : 'EMP000001',
           location: data.location || 'Remote',
           joiningDate: data.joiningDate || '2024-01-01',
-          profilePicture: data.avatar || 'https://via.placeholder.com/150'
+          profilePicture: data.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name || user.email)}&background=8A3EEA&color=fff`
         };
       }
     }
@@ -57,12 +56,12 @@ const toggleEditMode = () => {
 
 const updateDetails = async () => {
   try {
-    const response = await fetch(getApiUrl(`users/${employeeData.value.id}`), {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(employeeData.value)
-    });
-    if (response.ok) {
+    const updated = await updateUserProfile(employeeData.value.id, employeeData.value);
+    if (updated) {
+      employeeData.value = {
+        ...employeeData.value,
+        ...updated,
+      };
       isEditing.value = false;
     }
   } catch (error) {
