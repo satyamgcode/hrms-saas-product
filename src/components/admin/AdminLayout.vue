@@ -40,7 +40,7 @@ onMounted(async () => {
     const companyData = await getCompany(profile?.companyId || 1);
     if (companyData) {
       orgName.value = companyData.name;
-      orgLogo.value = companyData.logo;
+      orgLogo.value = companyData.logo || defaultLogo;
     }
   } catch (error) {
     console.error('Error fetching company info in Admin:', error);

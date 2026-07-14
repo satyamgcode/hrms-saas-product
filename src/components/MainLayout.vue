@@ -44,7 +44,7 @@ onMounted(async () => {
     const companyData = await getCompany(companyId);
     if (companyData) {
       orgName.value = companyData.name;
-      orgLogo.value = companyData.logo;
+      orgLogo.value = companyData.logo || defaultLogo;
     }
   } catch (error) {
     console.error('Error fetching company info:', error);
