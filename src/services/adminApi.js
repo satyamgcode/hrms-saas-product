@@ -20,11 +20,12 @@ const throwIfError = (error) => {
 };
 
 export const adminApi = {
-  async getAllEmployees() {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('name', { ascending: true });
+  async getAllEmployees(companyId) {
+    let query = supabase.from('users').select('*');
+    if (companyId) {
+      query = query.eq('companyId', companyId);
+    }
+    const { data, error } = await query.order('name', { ascending: true });
     throwIfError(error);
     return data ?? [];
   },
@@ -61,7 +62,8 @@ export const adminApi = {
       options: {
         data: {
           full_name: employeeData.name,
-          role: employeeData.role || 'Employee'
+          role: employeeData.role || 'Employee',
+          companyId: employeeData.companyId
         }
       }
     });
@@ -109,7 +111,7 @@ export const adminApi = {
       clients: employeeData.clients || 0,
       avatar: employeeData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(employeeData.name)}&background=8A3EEA&color=fff`,
       status: employeeData.status || 'active',
-      companyId: 1
+      companyId: employeeData.companyId || 1
     };
 
     // Let's upsert to make sure we don't duplicate or fail if trigger already created it.

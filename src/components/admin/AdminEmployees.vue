@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { adminApi } from '../../services/adminApi';
+import { getCurrentSession, getUserProfile } from '../../services/api';
 import AddEditEmployeeModal from './AddEditEmployeeModal.vue';
 
 const employees = ref([]);
@@ -11,11 +12,20 @@ const filterStatus = ref('');
 
 const showModal = ref(false);
 const selectedEmployee = ref(null);
+const adminCompanyId = ref(null);
 
 const loadEmployees = async () => {
   loading.value = true;
   try {
-    const data = await adminApi.getAllEmployees();
+    const session = await getCurrentSession();
+    const authUser = session?.user;
+    if (authUser) {
+      const profile = await getUserProfile({ userId: authUser.id });
+      if (profile) {
+        adminCompanyId.value = profile.companyId;
+      }
+    }
+    const data = await adminApi.getAllEmployees(adminCompanyId.value);
     employees.value = data;
   } catch (error) {
     console.error('Failed to load employees:', error);
@@ -66,7 +76,10 @@ const handleSave = async (formData) => {
       }
     } else {
       // Creating
-      const created = await adminApi.createEmployee(formData);
+      const created = await adminApi.createEmployee({
+        ...formData,
+        companyId: adminCompanyId.value
+      });
       employees.value.unshift(created);
     }
     showModal.value = false;

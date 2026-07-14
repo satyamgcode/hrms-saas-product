@@ -63,15 +63,16 @@ CREATE TABLE IF NOT EXISTS public.policies (
   name TEXT NOT NULL,
   url TEXT,
   category TEXT,
+  "companyId" INTEGER DEFAULT 1 REFERENCES public.companies(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 5. Insert Default Policies
-INSERT INTO public.policies (id, name, url, category)
+INSERT INTO public.policies (id, name, url, category, "companyId")
 VALUES 
-  (1, 'Company Terms and Conditions', 'https://example.com/terms.pdf', 'Legal'),
-  (2, 'Employee Conduct Policy', 'https://example.com/conduct.pdf', 'HR'),
-  (3, 'Work From Home Policy', 'https://example.com/wfh.pdf', 'Operations')
+  (1, 'Company Terms and Conditions', 'https://example.com/terms.pdf', 'Legal', 1),
+  (2, 'Employee Conduct Policy', 'https://example.com/conduct.pdf', 'HR', 1),
+  (3, 'Work From Home Policy', 'https://example.com/wfh.pdf', 'Operations', 1)
 ON CONFLICT (id) DO NOTHING;
 
 -- 6. Create Holidays Table
@@ -326,7 +327,7 @@ USING (
 -- AUTHENTICATION TRIGGER FOR USER PROFILE
 -- ==========================================
 
--- Create or replace the handle_new_user function to respect the metadata role
+-- Create or replace the handle_new_user function to respect the metadata role and companyId
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
@@ -338,13 +339,14 @@ BEGIN
     COALESCE(new.raw_user_meta_data->>'full_name', new.email),
     COALESCE(new.raw_user_meta_data->>'full_name', new.email),
     COALESCE(new.raw_user_meta_data->>'role', 'Employee'),
-    1
+    COALESCE((new.raw_user_meta_data->>'companyId')::integer, 1)
   )
   ON CONFLICT (id) DO UPDATE
   SET 
     role = EXCLUDED.role,
     name = EXCLUDED.name,
-    full_name = EXCLUDED.full_name;
+    full_name = EXCLUDED.full_name,
+    "companyId" = COALESCE(EXCLUDED."companyId", public.users."companyId");
 
   -- Insert into public.profiles (Admin & Company Onboarding Profiles)
   INSERT INTO public.profiles (id, email, full_name, role, onboarding_step, is_onboarded)

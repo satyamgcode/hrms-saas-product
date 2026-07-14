@@ -1,72 +1,25 @@
 <script setup>
-import { reactive, ref, onMounted } from 'vue';
-import { getUsers, createUser } from '../services/api';
+import { ref, onMounted } from 'vue';
+import { getUsers, getCurrentSession, getUserProfile } from '../services/api';
 
 const users = ref([]);
 const loading = ref(true);
-const showForm = ref(false);
-const formError = ref('');
-
-const newUser = reactive({
-  name: '',
-  email: '',
-  role: 'Employee',
-  designation: '',
-  avatar: '',
-});
-
-const roleOptions = [
-  'Employee',
-  'HR',
-  'Manager',
-  'Finance',
-  'Admin',
-  'Contractor',
-  'Other',
-];
+const currentCompanyId = ref(null);
 
 const loadUsers = async () => {
   loading.value = true;
   try {
-    users.value = await getUsers();
+    const session = await getCurrentSession();
+    const authUser = session?.user;
+    if (authUser) {
+      const profile = await getUserProfile({ userId: authUser.id });
+      if (profile) {
+        currentCompanyId.value = profile.companyId;
+      }
+    }
+    users.value = await getUsers(currentCompanyId.value);
   } catch (error) {
     console.error('Error fetching users:', error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const resetNewUserForm = () => {
-  newUser.name = '';
-  newUser.email = '';
-  newUser.role = 'Employee';
-  newUser.designation = '';
-  newUser.avatar = '';
-  formError.value = '';
-};
-
-const handleCreateUser = async () => {
-  if (!newUser.name || !newUser.email || !newUser.role) {
-    formError.value = 'Name, email, and role are required.';
-    return;
-  }
-
-  try {
-    loading.value = true;
-    const created = await createUser({
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      designation: newUser.designation,
-      avatar: newUser.avatar || null,
-      companyId: 1,
-    });
-    users.value.unshift(created);
-    resetNewUserForm();
-    showForm.value = false;
-  } catch (error) {
-    console.error('Error creating user:', error);
-    formError.value = error?.message || 'Unable to create user. Please try again.';
   } finally {
     loading.value = false;
   }
@@ -95,37 +48,6 @@ onMounted(loadUsers);
                     <i class="mdi mdi-magnify absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                     <input type="text" placeholder="Search team..." class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-brand-purple focus:bg-white transition-all text-sm font-medium">
                 </div>
-                <button @click="showForm = !showForm" class="flex-shrink-0 bg-brand-purple hover:bg-brand-purple/90 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-purple/20 active:scale-95">
-                    <i class="mdi mdi-plus"></i>
-                    <span class="hidden sm:inline">{{ showForm ? 'Close' : 'Add Member' }}</span>
-                </button>
-            </div>
-        </div>
-
-        <div v-if="showForm" class="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 mb-8">
-            <div class="grid gap-4 lg:grid-cols-2">
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Full name</label>
-                    <input v-model="newUser.name" type="text" placeholder="John Doe" class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:border-brand-purple focus:ring-brand-purple/20 focus:outline-none" />
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Email address</label>
-                    <input v-model="newUser.email" type="email" placeholder="john@company.com" class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:border-brand-purple focus:ring-brand-purple/20 focus:outline-none" />
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Role</label>
-                    <select v-model="newUser.role" class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:border-brand-purple focus:ring-brand-purple/20 focus:outline-none">
-                        <option v-for="role in roleOptions" :key="role" :value="role">{{ role }}</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Designation</label>
-                    <input v-model="newUser.designation" type="text" placeholder="Product Designer" class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:border-brand-purple focus:ring-brand-purple/20 focus:outline-none" />
-                </div>
-            </div>
-            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p v-if="formError" class="text-sm text-red-600">{{ formError }}</p>
-                <button @click="handleCreateUser" class="inline-flex items-center justify-center rounded-2xl bg-brand-purple px-6 py-3 text-sm font-bold text-white hover:bg-brand-purple/90 transition-all">Create team member</button>
             </div>
         </div>
 
@@ -170,7 +92,7 @@ onMounted(loadUsers);
                 <i class="mdi mdi-account-off-outline text-4xl text-gray-400"></i>
             </div>
             <h3 class="text-lg font-bold text-gray-900">No users found</h3>
-            <p class="text-gray-500 text-sm mt-1">Get started by adding a new team member.</p>
+            <p class="text-gray-500 text-sm mt-1">There are no team members in this directory.</p>
         </div>
     </div>
 </template>

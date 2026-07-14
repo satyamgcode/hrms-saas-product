@@ -52,7 +52,7 @@ export const getUserProfile = async ({ userId, email } = {}) => {
       full_name: authUser.user_metadata?.full_name || authUser.email,
       name: authUser.user_metadata?.full_name || authUser.email,
       role: isTestAdmin ? 'Admin' : (authUser.user_metadata?.role || (authUser.user_metadata?.is_admin ? 'Admin' : 'Employee')),
-      companyId: 1,
+      companyId: Number(authUser.user_metadata?.companyId) || 1,
     };
   }
 
@@ -98,14 +98,43 @@ export const getCompany = async (companyId = 1) => {
   return data;
 };
 
-export const getPolicies = async () => {
-  const { data, error } = await supabase.from('policies').select('*');
+export const getPolicies = async (companyId) => {
+  let finalCompanyId = companyId;
+  if (!finalCompanyId) {
+    const session = await getCurrentSession();
+    const authUser = session?.user;
+    if (authUser) {
+      const profile = await getUserProfile({ userId: authUser.id });
+      finalCompanyId = profile?.companyId;
+    }
+  }
+
+  let query = supabase.from('policies').select('*');
+  if (finalCompanyId) {
+    query = query.eq('companyId', finalCompanyId);
+  }
+  const { data, error } = await query;
   throwIfError(error);
   return data ?? [];
 };
 
 export const createPolicy = async (policy) => {
-  const { data, error } = await supabase.from('policies').insert(policy).select().single();
+  let finalCompanyId = policy.companyId;
+  if (!finalCompanyId) {
+    const session = await getCurrentSession();
+    const authUser = session?.user;
+    if (authUser) {
+      const profile = await getUserProfile({ userId: authUser.id });
+      finalCompanyId = profile?.companyId;
+    }
+  }
+
+  const payload = {
+    ...policy,
+    companyId: finalCompanyId || 1
+  };
+
+  const { data, error } = await supabase.from('policies').insert(payload).select().single();
   throwIfError(error);
   return data;
 };
@@ -122,10 +151,22 @@ export const getHolidays = async () => {
   return data ?? [];
 };
 
-export const getUsers = async () => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
+export const getUsers = async (companyId) => {
+  let finalCompanyId = companyId;
+  if (!finalCompanyId) {
+    const session = await getCurrentSession();
+    const authUser = session?.user;
+    if (authUser) {
+      const profile = await getUserProfile({ userId: authUser.id });
+      finalCompanyId = profile?.companyId;
+    }
+  }
+
+  let query = supabase.from('users').select('*');
+  if (finalCompanyId) {
+    query = query.eq('companyId', finalCompanyId);
+  }
+  const { data, error } = await query
     .order('role', { ascending: true })
     .order('name', { ascending: true });
   throwIfError(error);
@@ -133,10 +174,20 @@ export const getUsers = async () => {
 };
 
 export const createUser = async (user) => {
+  let finalCompanyId = user.companyId;
+  if (!finalCompanyId) {
+    const session = await getCurrentSession();
+    const authUser = session?.user;
+    if (authUser) {
+      const profile = await getUserProfile({ userId: authUser.id });
+      finalCompanyId = profile?.companyId;
+    }
+  }
+
   const payload = {
     ...user,
     role: user.role || 'Employee',
-    companyId: user.companyId ?? 1,
+    companyId: finalCompanyId ?? 1,
   };
 
   const { data, error } = await supabase.from('users').insert(payload).select().maybeSingle();

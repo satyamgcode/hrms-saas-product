@@ -6,6 +6,7 @@ const fileInput = ref(null);
 const documents = ref([]);
 const loading = ref(true);
 const isAdmin = ref(false);
+const companyId = ref(null);
 
 onMounted(async () => {
     try {
@@ -13,8 +14,11 @@ onMounted(async () => {
         if (user) {
             const profile = await getUserProfile({ email: user.email });
             isAdmin.value = profile?.role?.toLowerCase() === 'admin';
+            if (profile) {
+                companyId.value = profile.companyId;
+            }
         }
-        documents.value = await getPolicies();
+        documents.value = await getPolicies(companyId.value);
     } catch (error) {
         console.error('Error fetching policies:', error);
     } finally {
@@ -34,7 +38,8 @@ const handleFileUpload = async (event) => {
             const newDocument = {
                 name: file.name.replace(/\.[^/.]+$/, ""), // Strip file extension for cleaner name
                 url: uploadedUrl,
-                category: 'General'
+                category: 'General',
+                companyId: companyId.value || 1
             };
             
             const savedDoc = await createPolicy(newDocument);

@@ -136,8 +136,8 @@ import { getCompany, getUserProfile } from '../services/api';
 import { authService } from '../services/authService';
 
 const router = useRouter();
-const email = ref('admin@example.com');
-const password = ref('admin');
+const email = ref('');
+const password = ref('');
 const company = ref(null);
 const loading = ref(false);
 const error = ref('');

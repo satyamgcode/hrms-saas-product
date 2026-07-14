@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { adminApi } from '../../services/adminApi';
+import { getCurrentSession, getUserProfile } from '../../services/api';
 
 const employees = ref([]);
 const loading = ref(true);
+const adminCompanyId = ref(null);
 
 const stats = ref({
   total: 0,
@@ -18,7 +20,16 @@ const recentEmployees = ref([]);
 const loadDashboardData = async () => {
   loading.value = true;
   try {
-    const data = await adminApi.getAllEmployees();
+    const session = await getCurrentSession();
+    const authUser = session?.user;
+    if (authUser) {
+      const profile = await getUserProfile({ userId: authUser.id });
+      if (profile) {
+        adminCompanyId.value = profile.companyId;
+      }
+    }
+
+    const data = await adminApi.getAllEmployees(adminCompanyId.value);
     employees.value = data;
 
     // Calculate statistics
