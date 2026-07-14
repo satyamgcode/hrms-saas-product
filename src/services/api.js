@@ -257,3 +257,38 @@ export const uploadFile = async (bucket, folder, file) => {
   }
 };
 
+export const getLeaves = async ({ userId, companyId } = {}) => {
+  let query = supabase.from('leaves').select('*, user:users(name, full_name, avatar, email)');
+  if (userId) {
+    query = query.eq('userId', userId);
+  }
+  if (companyId) {
+    query = query.eq('companyId', companyId);
+  }
+  const { data, error } = await query.order('created_at', { ascending: false });
+  throwIfError(error);
+  return data ?? [];
+};
+
+export const createLeave = async (leave) => {
+  const { data, error } = await supabase.from('leaves').insert(leave).select().single();
+  throwIfError(error);
+  return data;
+};
+
+export const updateLeaveStatus = async (leaveId, { status, comments }) => {
+  const { data, error } = await supabase
+    .from('leaves')
+    .update({ status, comments, updated_at: new Date().toISOString() })
+    .eq('id', leaveId)
+    .select()
+    .single();
+  throwIfError(error);
+  return data;
+};
+
+export const deleteLeave = async (leaveId) => {
+  const { error } = await supabase.from('leaves').delete().eq('id', leaveId);
+  throwIfError(error);
+};
+

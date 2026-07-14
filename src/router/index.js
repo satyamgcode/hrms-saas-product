@@ -33,6 +33,11 @@ const routes = [
         name: 'admin-policies',
         component: () => import('../components/Companypolicy.vue'),
       },
+      {
+        path: 'leaves',
+        name: 'admin-leaves',
+        component: () => import('../components/admin/AdminLeaves.vue'),
+      },
     ],
   },
   {
@@ -77,6 +82,11 @@ const routes = [
         path: 'documents',
         name: 'documents',
         component: () => import('../components/EducationTab.vue'),
+      },
+      {
+        path: 'leaves',
+        name: 'leaves',
+        component: () => import('../components/LeavesTab.vue'),
       },
     ],
   },
