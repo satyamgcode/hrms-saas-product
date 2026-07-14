@@ -1,20 +1,13 @@
 <script setup>
-import defaultLogo from '../assets/home-logo.svg';
+import defaultLogo from '../../assets/home-logo.svg';
 import { useRouter, useRoute } from 'vue-router';
-import MainHeader from './headers/MainHeader.vue';
 import { ref, watch, onMounted } from 'vue';
-import { getCurrentSession, getUserProfile, getCompany } from '../services/api';
-import { supabase } from '../utils/supabase';
+import { getCurrentSession, getUserProfile, getCompany } from '../../services/api';
+import { supabase } from '../../utils/supabase';
 
-import employee from '../assets/icons/employee.svg';
-import user from '../assets/icons/user.svg';
-import shop from '../assets/icons/shop.svg';
-import mailbox from '../assets/icons/mailbox.svg';
-import Holiday from '../assets/icons/holiday-calendar.svg'
-
-const orgName = ref('HRMS Software');
+const orgName = ref('HRMS Admin');
 const orgLogo = ref(defaultLogo);
-const loggedInUser = ref({ name: 'Guest', role: 'Employee' });
+const loggedInUser = ref({ name: 'Admin', role: 'Admin' });
 const isSidebarCollapsed = ref(false);
 const isMobileMenuOpen = ref(false);
 
@@ -31,22 +24,26 @@ onMounted(async () => {
   }
 
   const profile = await getUserProfile({ email: authUser.email });
-  const companyId = profile?.companyId || 1;
+  if (profile?.role?.toLowerCase() !== 'admin') {
+    // If not Admin, kick back to overview
+    router.push('/overview');
+    return;
+  }
 
   loggedInUser.value = {
-    name: profile?.full_name || authUser.user_metadata?.full_name || authUser.email || 'User',
-    role: profile?.role || 'Employee',
+    name: profile?.full_name || authUser.user_metadata?.full_name || authUser.email || 'Admin',
+    role: profile?.role || 'Admin',
     email: authUser.email,
   };
 
   try {
-    const companyData = await getCompany(companyId);
+    const companyData = await getCompany(profile?.companyId || 1);
     if (companyData) {
       orgName.value = companyData.name;
       orgLogo.value = companyData.logo;
     }
   } catch (error) {
-    console.error('Error fetching company info:', error);
+    console.error('Error fetching company info in Admin:', error);
   }
 });
 
@@ -55,20 +52,12 @@ const handleLogout = async () => {
   router.push('/signin');
 };
 
-import { computed } from 'vue';
-
-const sideBarList = computed(() => {
-  const list = [
-    { text: 'Employee', route: '/overview', icon: employee },
-    { text: 'User', route: '/users', icon: user },
-    { text: 'Policy Documents', route: '/companypolicy', icon: shop },
-    { text: 'Holidays', route: '/holidays', icon: Holiday },
-  ];
-  if (loggedInUser.value?.role?.toLowerCase() === 'admin') {
-    list.push({ text: 'Admin Panel', route: '/admin/dashboard', icon: user });
-  }
-  return list;
-});
+const sideBarList = [
+  { text: 'Dashboard', route: '/admin/dashboard', icon: 'mdi-view-dashboard' },
+  { text: 'Employees', route: '/admin/employees', icon: 'mdi-account-group' },
+  { text: 'Company Policies', route: '/admin/policies', icon: 'mdi-file-document' },
+  { text: 'Back to Profile', route: '/overview', icon: 'mdi-account-circle' }
+];
 
 const activeTab = ref(route.path);
 
@@ -82,17 +71,13 @@ const toggleSidebar = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
 };
 
-const toggleMobileMenu = () => {
-  isMobileMenuOpen.value = !isMobileMenuOpen.value;
-};
-
 watch(route, () => {
   activeTab.value = route.path;
 });
 </script>
 
 <template>
-  <div class="flex h-screen bg-gray-50 font-sans overflow-hidden">
+  <div class="flex h-screen bg-gray-50 font-sans overflow-hidden text-gray-800">
     <!-- Mobile Overlay -->
     <div v-if="isMobileMenuOpen" class="fixed inset-0 bg-black/50 z-[60] lg:hidden backdrop-blur-sm transition-opacity"
       @click="isMobileMenuOpen = false">
@@ -105,13 +90,12 @@ watch(route, () => {
       isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
     ]">
       <!-- Sidebar Header -->
-      <div class="h-20 flex items-center px-6 border-b border-gray-50 flex-shrink-0">
+      <div class="h-20 flex items-center px-6 border-b border-gray-100 flex-shrink-0">
         <div class="flex items-center min-w-0">
-          <div
-            class="flex-shrink-0 w-10 h-10 bg-brand-purple/10 rounded-xl flex items-center justify-center mr-3 shadow-sm">
+          <div class="flex-shrink-0 w-10 h-10 bg-brand-purple/10 rounded-xl flex items-center justify-center mr-3 shadow-sm">
             <img :src="orgLogo" alt="Logo" class="h-6 w-6 object-contain" />
           </div>
-          <h1 v-show="!isSidebarCollapsed" class="text-lg font-black tracking-tight text-gray-900">
+          <h1 v-show="!isSidebarCollapsed" class="text-lg font-black tracking-tight text-gray-900 truncate">
             {{ orgName }}
           </h1>
         </div>
@@ -126,24 +110,23 @@ watch(route, () => {
             : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
         ]">
           <div :class="[
-            'flex-shrink-0 transition-transform group-hover:scale-110',
-            isSidebarCollapsed ? 'mx-auto' : 'mr-4',
-            activeTab === link.route ? 'brightness-0 invert' : ''
+            'flex-shrink-0 transition-transform group-hover:scale-110 flex items-center justify-center w-6 h-6',
+            activeTab === link.route ? 'text-white' : 'text-gray-450 group-hover:text-gray-700'
           ]">
-            <img :src="link.icon" class="w-5 h-5" />
+            <i :class="['mdi', link.icon, 'text-xl']"></i>
           </div>
-          <span v-show="!isSidebarCollapsed" class="text-sm font-bold whitespace-nowrap">{{ link.text }}</span>
+          <span v-show="!isSidebarCollapsed" class="text-sm font-bold whitespace-nowrap ml-3">{{ link.text }}</span>
 
           <!-- Tooltip for collapsed mode -->
           <div v-if="isSidebarCollapsed"
-            class="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
+            class="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap border border-gray-800">
             {{ link.text }}
           </div>
         </div>
       </nav>
 
       <!-- Profile & Logout Section -->
-      <div class="p-4 mt-auto border-t border-gray-50 bg-gray-50/50">
+      <div class="p-4 mt-auto border-t border-gray-100 bg-gray-50/50">
         <div
           :class="['flex items-center', isSidebarCollapsed ? 'justify-center' : 'p-2 bg-white rounded-2xl shadow-sm border border-gray-100']">
           <div class="relative flex-shrink-0">
@@ -154,8 +137,7 @@ watch(route, () => {
 
           <div v-show="!isSidebarCollapsed" class="ml-3 flex-grow min-w-0">
             <p class="text-sm font-bold text-gray-900 truncate">{{ loggedInUser.name }}</p>
-            <p class="text-[10px] uppercase tracking-wider font-black text-gray-400 truncate">{{ loggedInUser.role }}
-            </p>
+            <p class="text-[10px] uppercase tracking-wider font-black text-gray-400 truncate">{{ loggedInUser.role }}</p>
           </div>
 
           <button v-show="!isSidebarCollapsed" @click="handleLogout"
@@ -177,8 +159,8 @@ watch(route, () => {
       <header class="h-20 flex items-center justify-between px-6 bg-white border-b border-gray-100 z-40 flex-shrink-0">
         <div class="flex items-center gap-4">
           <!-- Mobile Menu Toggle -->
-          <button @click="toggleMobileMenu"
-            class="lg:hidden text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">
+          <button @click="isMobileMenuOpen = true"
+            class="lg:hidden text-gray-500 hover:text-gray-900 rounded-xl transition-colors">
             <i class="mdi mdi-menu text-2xl"></i>
           </button>
 
@@ -190,19 +172,21 @@ watch(route, () => {
 
           <div class="h-8 w-px bg-gray-100 mx-2 hidden lg:block"></div>
 
-          <!-- Dynamic Breadcrumb or Page Title -->
+          <!-- Title -->
           <h2 class="text-xl font-extrabold text-gray-900 hidden sm:block">
-            {{sideBarList.find(l => l.route === activeTab)?.text || 'Dashboard'}}
+            {{ sideBarList.find(l => l.route === activeTab)?.text || 'Admin Panel' }}
           </h2>
         </div>
 
         <div class="flex items-center gap-4">
-          <MainHeader />
+          <span class="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 text-xs font-bold border border-purple-500/20">
+            System Administrator Mode
+          </span>
         </div>
       </header>
 
       <!-- View Area -->
-      <div class="flex-grow overflow-y-auto p-2 lg:p-4 custom-scrollbar">
+      <div class="flex-grow overflow-y-auto p-4 lg:p-6 custom-scrollbar bg-gray-50">
         <div class="w-full mx-auto">
           <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
@@ -215,62 +199,26 @@ watch(route, () => {
   </div>
 </template>
 
-<style>
-@import url('https://cdn.materialdesignicons.com/5.4.55/css/materialdesignicons.min.css');
-
+<style scoped>
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #e5e7eb;
   border-radius: 10px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #d1d5db;
 }
-
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
 }
-
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-:root {
-  --brand-purple: #8A3EEA;
-  --brand-orange: #F3901B;
-}
-
-.bg-brand-purple {
-  background-color: var(--brand-purple);
-}
-
-.text-brand-purple {
-  color: var(--brand-purple);
-}
-
-.bg-brand-purple\/10 {
-  background-color: rgba(138, 62, 234, 0.1);
-}
-
-.border-brand-purple\/10 {
-  border-color: rgba(138, 62, 234, 0.1);
-}
-
-.border-brand-purple\/20 {
-  border-color: rgba(138, 62, 234, 0.2);
-}
-
-.shadow-brand-purple\/25 {
-  shadow-color: rgba(138, 62, 234, 0.25);
 }
 </style>

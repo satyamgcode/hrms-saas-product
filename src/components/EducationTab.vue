@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getCurrentUser, getUserDocuments, createDocument, updateDocument as updateDocumentApi, deleteDocument as deleteDocumentApi } from '../services/api';
+import { getCurrentUser, getUserProfile, getUserDocuments, createDocument, updateDocument as updateDocumentApi, deleteDocument as deleteDocumentApi, uploadFile } from '../services/api';
 import EmployeePage from './EmployeePage.vue';
 
 const documentTypes = [
@@ -29,9 +29,19 @@ const selectedFile = ref(null);
 const uploadedDocuments = ref([]);
 const documentToUpdate = ref(null);
 const loading = ref(true);
+const isAdmin = ref(false);
 
 onMounted(async () => {
   await fetchDocuments();
+  try {
+    const user = await getCurrentUser();
+    if (user) {
+      const profile = await getUserProfile({ email: user.email });
+      isAdmin.value = profile?.role?.toLowerCase() === 'admin';
+    }
+  } catch (e) {
+    console.error('Error fetching role in EducationTab:', e);
+  }
 });
 
 const fetchDocuments = async () => {
@@ -67,29 +77,56 @@ const handleFileUpload = (event) => {
 
 const saveDocument = async () => {
   if (selectedDocumentType.value && selectedFile.value) {
-    const user = await getCurrentUser();
-    const newDoc = {
-      userId: user?.id,
-      type: selectedDocumentType.value,
-      name: selectedFile.value.name,
-      url: '#',
-      lastModified: new Date().toLocaleDateString(),
-    };
-
     try {
+      const user = await getCurrentUser();
+      const uploadedUrl = await uploadFile('documents', user?.id || 'general', selectedFile.value);
+      
+      const newDoc = {
+        userId: user?.id,
+        type: selectedDocumentType.value,
+        name: selectedFile.value.name,
+        url: uploadedUrl,
+        lastModified: new Date().toLocaleDateString(),
+      };
+
       const savedDoc = await createDocument(newDoc);
       uploadedDocuments.value.push(savedDoc);
       selectedDocumentType.value = '';
       selectedFile.value = null;
+      alert(`Document "${newDoc.name}" uploaded successfully!`);
     } catch (error) {
       console.error('Error saving document:', error);
+      alert(`Error saving document: ${error.message || error}`);
     }
   }
 };
 
 const previewDocument = (doc) => {
-  const fileURL = URL.createObjectURL(doc.file);
-  window.open(fileURL, '_blank');
+  if (!doc.url || doc.url === '#') {
+    alert('No preview URL available for this document.');
+    return;
+  }
+  
+  if (doc.url.startsWith('data:')) {
+    try {
+      const arr = doc.url.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+      const fileURL = URL.createObjectURL(blob);
+      window.open(fileURL, '_blank');
+    } catch (e) {
+      console.error('Error previewing base64 document:', e);
+      window.open(doc.url, '_blank');
+    }
+  } else {
+    window.open(doc.url, '_blank');
+  }
 };
 
 const triggerUpdateFileUpload = (doc) => {
@@ -99,7 +136,8 @@ const triggerUpdateFileUpload = (doc) => {
 
 const deleteDocument = async (doc) => {
   try {
-      await deleteDocumentApi(doc.id);
+    await deleteDocumentApi(doc.id);
+    const index = uploadedDocuments.value.findIndex(d => d.id === doc.id);
     if (index !== -1) {
       uploadedDocuments.value.splice(index, 1);
     }
@@ -111,21 +149,27 @@ const deleteDocument = async (doc) => {
 const handleUpdateFile = async (event) => {
   const file = event.target.files[0];
   if (file && documentToUpdate.value) {
-    const updatedDoc = {
-      ...documentToUpdate.value,
-      name: file.name,
-      lastModified: new Date().toLocaleDateString()
-    };
-
     try {
+      const user = await getCurrentUser();
+      const uploadedUrl = await uploadFile('documents', user?.id || 'general', file);
+      
+      const updatedDoc = {
+        ...documentToUpdate.value,
+        name: file.name,
+        url: uploadedUrl,
+        lastModified: new Date().toLocaleDateString()
+      };
+
       const savedDoc = await updateDocumentApi(documentToUpdate.value.id, updatedDoc);
       const index = uploadedDocuments.value.findIndex(d => d.id === documentToUpdate.value.id);
       if (index !== -1) {
         uploadedDocuments.value[index] = savedDoc;
       }
       documentToUpdate.value = null;
+      alert(`Document updated to "${file.name}" successfully!`);
     } catch (error) {
       console.error('Error updating document:', error);
+      alert(`Error updating document: ${error.message || error}`);
     }
   }
 };
@@ -139,7 +183,7 @@ const handleUpdateFile = async (event) => {
       <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
         
         <!-- Upload Card -->
-        <div class="xl:col-span-2 bg-white p-6 sm:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100">
+        <div v-if="isAdmin" class="xl:col-span-2 bg-white p-6 sm:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100">
           <div class="flex items-center gap-4 mb-8">
             <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-200">
               <i class="mdi mdi-cloud-upload-outline text-3xl"></i>
@@ -206,7 +250,7 @@ const handleUpdateFile = async (event) => {
         </div>
 
         <!-- Required Documents Sidebar -->
-        <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 h-fit">
+        <div :class="[isAdmin ? 'xl:col-span-1' : 'xl:col-span-3']" class="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 h-fit">
           <div class="flex items-center gap-4 mb-6 pb-6 border-b border-gray-50">
             <div class="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-brand-orange">
               <i class="mdi mdi-format-list-checks text-2xl"></i>
@@ -270,11 +314,11 @@ const handleUpdateFile = async (event) => {
                     <button @click="previewDocument(doc)" class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Preview">
                         <i class="mdi mdi-eye-outline text-lg"></i>
                     </button>
-                    <button @click="triggerUpdateFileUpload(doc)" class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all" title="Update">
+                    <button v-if="isAdmin" @click="triggerUpdateFileUpload(doc)" class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all" title="Update">
                         <i class="mdi mdi-cloud-upload-outline text-lg"></i>
                     </button>
-                    <div class="w-px h-4 bg-gray-200 mx-1"></div>
-                    <button @click="deleteDocument(doc)" class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="Delete">
+                    <div v-if="isAdmin" class="w-px h-4 bg-gray-200 mx-1"></div>
+                    <button v-if="isAdmin" @click="deleteDocument(doc)" class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="Delete">
                         <i class="mdi mdi-delete-outline text-lg"></i>
                     </button>
                   </div>

@@ -1,19 +1,78 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import { getUsers } from '../services/api';
+import { reactive, ref, onMounted } from 'vue';
+import { getUsers, createUser } from '../services/api';
 
 const users = ref([]);
 const loading = ref(true);
+const showForm = ref(false);
+const formError = ref('');
 
-onMounted(async () => {
-    try {
-        users.value = await getUsers();
-    } catch (error) {
-        console.error('Error fetching users:', error);
-    } finally {
-        loading.value = false;
-    }
+const newUser = reactive({
+  name: '',
+  email: '',
+  role: 'Employee',
+  designation: '',
+  avatar: '',
 });
+
+const roleOptions = [
+  'Employee',
+  'HR',
+  'Manager',
+  'Finance',
+  'Admin',
+  'Contractor',
+  'Other',
+];
+
+const loadUsers = async () => {
+  loading.value = true;
+  try {
+    users.value = await getUsers();
+  } catch (error) {
+    console.error('Error fetching users:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const resetNewUserForm = () => {
+  newUser.name = '';
+  newUser.email = '';
+  newUser.role = 'Employee';
+  newUser.designation = '';
+  newUser.avatar = '';
+  formError.value = '';
+};
+
+const handleCreateUser = async () => {
+  if (!newUser.name || !newUser.email || !newUser.role) {
+    formError.value = 'Name, email, and role are required.';
+    return;
+  }
+
+  try {
+    loading.value = true;
+    const created = await createUser({
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role,
+      designation: newUser.designation,
+      avatar: newUser.avatar || null,
+      companyId: 1,
+    });
+    users.value.unshift(created);
+    resetNewUserForm();
+    showForm.value = false;
+  } catch (error) {
+    console.error('Error creating user:', error);
+    formError.value = error?.message || 'Unable to create user. Please try again.';
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(loadUsers);
 </script>
 
 <template>
@@ -36,10 +95,37 @@ onMounted(async () => {
                     <i class="mdi mdi-magnify absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                     <input type="text" placeholder="Search team..." class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-brand-purple focus:bg-white transition-all text-sm font-medium">
                 </div>
-                <button class="flex-shrink-0 bg-brand-purple hover:bg-brand-purple/90 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-purple/20 active:scale-95">
+                <button @click="showForm = !showForm" class="flex-shrink-0 bg-brand-purple hover:bg-brand-purple/90 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-purple/20 active:scale-95">
                     <i class="mdi mdi-plus"></i>
-                    <span class="hidden sm:inline">Add Member</span>
+                    <span class="hidden sm:inline">{{ showForm ? 'Close' : 'Add Member' }}</span>
                 </button>
+            </div>
+        </div>
+
+        <div v-if="showForm" class="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 mb-8">
+            <div class="grid gap-4 lg:grid-cols-2">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Full name</label>
+                    <input v-model="newUser.name" type="text" placeholder="John Doe" class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:border-brand-purple focus:ring-brand-purple/20 focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Email address</label>
+                    <input v-model="newUser.email" type="email" placeholder="john@company.com" class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:border-brand-purple focus:ring-brand-purple/20 focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                    <select v-model="newUser.role" class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:border-brand-purple focus:ring-brand-purple/20 focus:outline-none">
+                        <option v-for="role in roleOptions" :key="role" :value="role">{{ role }}</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Designation</label>
+                    <input v-model="newUser.designation" type="text" placeholder="Product Designer" class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:border-brand-purple focus:ring-brand-purple/20 focus:outline-none" />
+                </div>
+            </div>
+            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p v-if="formError" class="text-sm text-red-600">{{ formError }}</p>
+                <button @click="handleCreateUser" class="inline-flex items-center justify-center rounded-2xl bg-brand-purple px-6 py-3 text-sm font-bold text-white hover:bg-brand-purple/90 transition-all">Create team member</button>
             </div>
         </div>
 
@@ -54,15 +140,15 @@ onMounted(async () => {
                  class="group bg-white p-4 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100 hover:border-brand-purple/30 hover:shadow-xl hover:shadow-brand-purple/5 transition-all duration-300 flex items-center gap-4 cursor-pointer">
                 
                 <div class="relative flex-shrink-0">
-                    <img :src="user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=8A3EEA&color=fff`" 
-                         :alt="user.name" 
+                    <img :src="user.avatar || `https://ui-avatars.com/api/?name=${user.name || user.full_name}&background=8A3EEA&color=fff`" 
+                         :alt="user.name || user.full_name" 
                          class="w-14 h-14 rounded-full object-cover border-2 border-white shadow-sm group-hover:scale-105 transition-transform duration-300" />
                     <!-- Online Status Indicator (mocked) -->
                     <span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
                 </div>
                 
                 <div class="flex-grow min-w-0">
-                    <h3 class="text-sm font-bold text-gray-900 truncate group-hover:text-brand-purple transition-colors">{{ user.name }}</h3>
+                    <h3 class="text-sm font-bold text-gray-900 truncate group-hover:text-brand-purple transition-colors">{{ user.name || user.full_name }}</h3>
                     <p class="text-xs font-semibold text-brand-purple capitalize truncate mt-0.5">{{ user.role }}</p>
                     <p class="text-[10px] text-gray-500 uppercase tracking-wider truncate mt-1">{{ user.designation || 'General' }}</p>
                 </div>

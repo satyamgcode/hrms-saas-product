@@ -132,7 +132,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { getCompany } from '../services/api';
+import { getCompany, getUserProfile } from '../services/api';
 import { authService } from '../services/authService';
 
 const router = useRouter();
@@ -172,8 +172,18 @@ const handleSignIn = async () => {
   error.value = '';
 
   try {
-    await authService.signIn(email.value, password.value);
-    router.push('/overview');
+    const data = await authService.signIn(email.value, password.value);
+    const user = data?.user;
+    if (user) {
+      const profile = await getUserProfile({ email: user.email });
+      if (profile?.role?.toLowerCase() === 'admin') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/overview');
+      }
+    } else {
+      router.push('/overview');
+    }
   } catch (err) {
     error.value = err?.message || 'Login failed. Please check your credentials.';
   } finally {

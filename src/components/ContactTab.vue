@@ -26,9 +26,10 @@ onMounted(async () => {
       if (data) {
         contactData.value = {
           ...data,
-          currentAddress: data.currentAddress || 'N/A',
-          permanentAddress: data.permanentAddress || 'N/A',
-          officeAddress: data.officeAddress || 'HQ Tech Park, Suite 101'
+          currentAddress: data.current_address || 'N/A',
+          permanentAddress: data.permanent_address || 'N/A',
+          officeAddress: data.office_address || 'HQ Tech Park, Suite 101',
+          socialLinks: data.social_links || { linkedin: '#', twitter: '#', facebook: '#' }
         };
       }
     }
@@ -43,9 +44,22 @@ const toggleEdit = () => {
 
 const saveChanges = async () => {
   try {
+    // Map back to database snake_case fields
+    contactData.value.current_address = contactData.value.currentAddress;
+    contactData.value.permanent_address = contactData.value.permanentAddress;
+    contactData.value.office_address = contactData.value.officeAddress;
+    contactData.value.social_links = contactData.value.socialLinks;
+
     const updated = await updateUserProfile(contactData.value.id, contactData.value);
     if (updated) {
-      contactData.value = { ...contactData.value, ...updated };
+      contactData.value = { 
+        ...contactData.value, 
+        ...updated,
+        currentAddress: updated.current_address || contactData.value.currentAddress,
+        permanentAddress: updated.permanent_address || contactData.value.permanentAddress,
+        officeAddress: updated.office_address || contactData.value.officeAddress,
+        socialLinks: updated.social_links || contactData.value.socialLinks
+      };
       isEditing.value = false;
     }
   } catch (error) {

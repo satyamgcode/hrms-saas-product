@@ -1,12 +1,39 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import MainLayout from '../components/MainLayout.vue';
+import AdminLayout from '../components/admin/AdminLayout.vue';
 import { supabase } from '../utils/supabase';
+import { getUserProfile } from '../services/api';
 
 const routes = [
   {
     path: '/signin',
     name: 'signin',
     component: () => import('../components/SignIn.vue'),
+  },
+  {
+    path: '/admin',
+    component: AdminLayout,
+    children: [
+      {
+        path: '',
+        redirect: '/admin/dashboard',
+      },
+      {
+        path: 'dashboard',
+        name: 'admin-dashboard',
+        component: () => import('../components/admin/AdminDashboard.vue'),
+      },
+      {
+        path: 'employees',
+        name: 'admin-employees',
+        component: () => import('../components/admin/AdminEmployees.vue'),
+      },
+      {
+        path: 'policies',
+        name: 'admin-policies',
+        component: () => import('../components/Companypolicy.vue'),
+      },
+    ],
   },
   {
     path: '/',
@@ -61,10 +88,6 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
-  if (to.path === '/signin') {
-    return true;
-  }
-
   const refreshToken = to.query.refresh_token;
   if (refreshToken) {
     await supabase.auth.setSession({ refresh_token: refreshToken.toString() });
@@ -73,8 +96,29 @@ router.beforeEach(async (to) => {
   const { data } = await supabase.auth.getSession();
   const session = data?.session;
 
+  if (to.path === '/signin') {
+    if (session?.user) {
+      // User is already signed in. Check role to redirect.
+      const profile = await getUserProfile({ email: session.user.email });
+      if (profile?.role?.toLowerCase() === 'admin') {
+        return { path: '/admin/dashboard' };
+      }
+      return { path: '/overview' };
+    }
+    return true;
+  }
+
   if (!session?.user) {
     return { path: '/signin' };
+  }
+
+  // Check role restriction for admin panel
+  if (to.path.startsWith('/admin')) {
+    const profile = await getUserProfile({ email: session.user.email });
+    if (profile?.role?.toLowerCase() !== 'admin') {
+      console.warn('Unauthorized admin access attempt. Redirecting to employee overview.');
+      return { path: '/overview' };
+    }
   }
 
   return true;

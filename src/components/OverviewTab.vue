@@ -34,7 +34,9 @@ onMounted(async () => {
                 employeeData.value = {
                     ...profile,
                     role: profile.role || profile.designation || 'Member',
-                    avatar: profile.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || user.email)}&background=8A3EEA&color=fff`,
+                    joiningDate: profile.joining_date || '',
+                    socialLinks: profile.social_links || { facebook: '#', twitter: '#', linkedin: '#' },
+                    avatar: profile.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || profile.full_name || user.email)}&background=8A3EEA&color=fff`,
                 };
             }
         }

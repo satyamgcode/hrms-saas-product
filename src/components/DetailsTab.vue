@@ -40,7 +40,7 @@ onMounted(async () => {
           department: data.department || 'Technology',
           employeeId: data.id ? `EMP${String(data.id).padStart(6, '0')}` : 'EMP000001',
           location: data.location || 'Remote',
-          joiningDate: data.joiningDate || '2024-01-01',
+          joiningDate: data.joining_date || '2024-01-01',
           profilePicture: data.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name || user.email)}&background=8A3EEA&color=fff`
         };
       }
@@ -56,11 +56,17 @@ const toggleEditMode = () => {
 
 const updateDetails = async () => {
   try {
+    // Map properties back to database columns
+    employeeData.value.joining_date = employeeData.value.joiningDate;
+    employeeData.value.avatar = employeeData.value.profilePicture;
+    
     const updated = await updateUserProfile(employeeData.value.id, employeeData.value);
     if (updated) {
       employeeData.value = {
         ...employeeData.value,
         ...updated,
+        joiningDate: updated.joining_date || employeeData.value.joiningDate,
+        profilePicture: updated.avatar || employeeData.value.profilePicture
       };
       isEditing.value = false;
     }

@@ -1,13 +1,19 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getPolicies, createPolicy } from '../services/api';
+import { getPolicies, createPolicy, getCurrentUser, getUserProfile, uploadFile, deletePolicy } from '../services/api';
 
 const fileInput = ref(null);
 const documents = ref([]);
 const loading = ref(true);
+const isAdmin = ref(false);
 
 onMounted(async () => {
     try {
+        const user = await getCurrentUser();
+        if (user) {
+            const profile = await getUserProfile({ email: user.email });
+            isAdmin.value = profile?.role?.toLowerCase() === 'admin';
+        }
         documents.value = await getPolicies();
     } catch (error) {
         console.error('Error fetching policies:', error);
@@ -23,17 +29,66 @@ const uploadDocument = () => {
 const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
-        const newDocument = {
-            name: file.name,
-            url: '#',
-            category: 'General'
-        };
-        
         try {
+            const uploadedUrl = await uploadFile('policies', 'company-policies', file);
+            const newDocument = {
+                name: file.name.replace(/\.[^/.]+$/, ""), // Strip file extension for cleaner name
+                url: uploadedUrl,
+                category: 'General'
+            };
+            
             const savedDoc = await createPolicy(newDocument);
             documents.value.push(savedDoc);
+            alert(`Policy "${newDocument.name}" uploaded successfully!`);
         } catch (error) {
             console.error('Error uploading document:', error);
+            alert(`Error uploading policy: ${error.message || error}`);
+        } finally {
+            event.target.value = ''; // Reset file input so same file can be selected again
+        }
+    }
+};
+
+const viewPolicy = (policy) => {
+  if (!policy.url || policy.url === '#') {
+    alert('No preview URL available for this policy.');
+    return;
+  }
+  
+  if (policy.url.startsWith('data:')) {
+    try {
+      const arr = policy.url.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+      const fileURL = URL.createObjectURL(blob);
+      window.open(fileURL, '_blank');
+    } catch (e) {
+      console.error('Error viewing base64 policy:', e);
+      window.open(policy.url, '_blank');
+    }
+  } else {
+    window.open(policy.url, '_blank');
+  }
+};
+
+const deletePolicyItem = async (doc) => {
+    if (confirm(`Are you sure you want to delete policy "${doc.name}"?`)) {
+        try {
+            await deletePolicy(doc.id);
+            const index = documents.value.findIndex(d => d.id === doc.id);
+            if (index !== -1) {
+                documents.value.splice(index, 1);
+            }
+            alert(`Policy "${doc.name}" deleted successfully!`);
+        } catch (error) {
+            console.error('Error deleting policy:', error);
+            alert(`Error deleting policy: ${error.message || error}`);
         }
     }
 };
@@ -46,7 +101,7 @@ const handleFileUpload = async (event) => {
                 <h2 class="text-3xl font-bold text-gray-900">Company Policies</h2>
                 <p class="text-gray-500">Official documents and guidelines for employees.</p>
             </div>
-            <button @click="uploadDocument" 
+            <button v-if="isAdmin" @click="uploadDocument" 
                     class="w-full sm:w-auto bg-brand-purple hover:bg-brand-purple/90 text-white px-6 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-purple/20">
                 <i class="mdi mdi-upload"></i>
                 Upload Document
@@ -71,12 +126,20 @@ const handleFileUpload = async (event) => {
                 </div>
                 
                 <div class="flex items-center justify-between mt-6">
-                    <a :href="document.url" target="_blank" 
+                    <a @click.prevent="viewPolicy(document)" href="#" 
                        class="text-sm font-bold text-brand-purple hover:text-brand-orange flex items-center gap-1 transition-colors">
-                        <i class="mdi mdi-download"></i>
-                        Download PDF
+                        <i class="mdi mdi-eye-outline"></i>
+                        View Policy
                     </a>
-                    <span class="text-xs text-gray-400 italic">Added recently</span>
+                    
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-400 italic">Added recently</span>
+                        <button v-if="isAdmin" @click="deletePolicyItem(document)"
+                                class="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-650 flex items-center justify-center transition-colors"
+                                title="Delete Policy">
+                            <i class="mdi mdi-delete-outline text-lg"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
