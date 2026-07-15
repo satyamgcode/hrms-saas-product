@@ -372,3 +372,216 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ==========================================
+-- SALARY & PAYROLL MANAGEMENT TABLES
+-- ==========================================
+
+-- 1. Salary Structures (Templates)
+CREATE TABLE IF NOT EXISTS public.salary_structures (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  "companyId" INTEGER DEFAULT 1 REFERENCES public.companies(id) ON DELETE CASCADE,
+  basic_percent NUMERIC DEFAULT 50.0, -- % of Gross Salary
+  hra_percent NUMERIC DEFAULT 20.0, -- % of Gross Salary or % of Basic
+  da_percent NUMERIC DEFAULT 10.0, -- % of Gross Salary
+  special_allowance_percent NUMERIC DEFAULT 20.0, -- % of Gross Salary
+  pf_percent NUMERIC DEFAULT 12.0, -- % of Basic for PF deduction
+  professional_tax NUMERIC DEFAULT 200.0, -- Fixed monthly deduction
+  tds_percent NUMERIC DEFAULT 10.0, -- Average TDS percentage of gross
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Employee Salary Allocations (linking Gross Salary and Structure to user)
+CREATE TABLE IF NOT EXISTS public.employee_salaries (
+  id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+  structure_id INTEGER REFERENCES public.salary_structures(id) ON DELETE SET NULL,
+  gross_salary NUMERIC NOT NULL DEFAULT 0.0,
+  basic_salary NUMERIC NOT NULL DEFAULT 0.0,
+  hra NUMERIC NOT NULL DEFAULT 0.0,
+  da NUMERIC NOT NULL DEFAULT 0.0,
+  special_allowance NUMERIC NOT NULL DEFAULT 0.0,
+  pf_deduction NUMERIC NOT NULL DEFAULT 0.0,
+  professional_tax NUMERIC NOT NULL DEFAULT 200.0,
+  tds_deduction NUMERIC NOT NULL DEFAULT 0.0,
+  other_allowances NUMERIC NOT NULL DEFAULT 0.0,
+  other_deductions NUMERIC NOT NULL DEFAULT 0.0,
+  net_salary NUMERIC NOT NULL DEFAULT 0.0,
+  payment_method TEXT DEFAULT 'Bank Transfer',
+  bank_name TEXT,
+  bank_account_no TEXT,
+  bank_ifsc_code TEXT,
+  currency TEXT DEFAULT 'USD',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. Payroll Runs
+CREATE TABLE IF NOT EXISTS public.payroll_runs (
+  id SERIAL PRIMARY KEY,
+  "companyId" INTEGER DEFAULT 1 REFERENCES public.companies(id) ON DELETE CASCADE,
+  month_year TEXT NOT NULL, -- Format: "YYYY-MM" (e.g. "2026-07")
+  status TEXT DEFAULT 'Draft', -- Draft, Processing, Approved, Paid
+  total_employees INTEGER DEFAULT 0,
+  total_gross NUMERIC DEFAULT 0.0,
+  total_deductions NUMERIC DEFAULT 0.0,
+  total_net NUMERIC DEFAULT 0.0,
+  processed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE("companyId", month_year)
+);
+
+-- 4. Employee Payslips (individual pay details generated per payroll run)
+CREATE TABLE IF NOT EXISTS public.payslips (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  payroll_run_id INTEGER REFERENCES public.payroll_runs(id) ON DELETE CASCADE,
+  "userId" UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  month_year TEXT NOT NULL, -- "YYYY-MM"
+  gross_salary NUMERIC NOT NULL DEFAULT 0.0,
+  basic_salary NUMERIC NOT NULL DEFAULT 0.0,
+  hra NUMERIC NOT NULL DEFAULT 0.0,
+  da NUMERIC NOT NULL DEFAULT 0.0,
+  special_allowance NUMERIC NOT NULL DEFAULT 0.0,
+  pf_deduction NUMERIC NOT NULL DEFAULT 0.0,
+  professional_tax NUMERIC NOT NULL DEFAULT 0.0,
+  tds_deduction NUMERIC NOT NULL DEFAULT 0.0,
+  other_allowances NUMERIC NOT NULL DEFAULT 0.0,
+  other_deductions NUMERIC NOT NULL DEFAULT 0.0,
+  net_salary NUMERIC NOT NULL DEFAULT 0.0,
+  payment_status TEXT DEFAULT 'Pending', -- Pending, Processing, Paid, Cancelled
+  payment_method TEXT DEFAULT 'Bank Transfer',
+  payment_date DATE,
+  currency TEXT DEFAULT 'USD',
+  leaves_taken INTEGER DEFAULT 0,
+  working_days INTEGER DEFAULT 30,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE("userId", month_year)
+);
+
+-- 5. Salary History (records of all changes to gross or structures)
+CREATE TABLE IF NOT EXISTS public.salary_history (
+  id SERIAL PRIMARY KEY,
+  "userId" UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  previous_gross NUMERIC,
+  new_gross NUMERIC,
+  change_type TEXT, -- Promotion, Revision, Structure Change, Joining
+  effective_date DATE,
+  notes TEXT,
+  updated_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ==========================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- ==========================================
+
+-- Enable RLS on the new tables
+ALTER TABLE public.salary_structures ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.employee_salaries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payroll_runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payslips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.salary_history ENABLE ROW LEVEL SECURITY;
+
+-- 1. Policies for salary_structures
+DROP POLICY IF EXISTS "Allow authenticated users to read structures" ON public.salary_structures;
+CREATE POLICY "Allow authenticated users to read structures"
+ON public.salary_structures FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow admins to manage structures" ON public.salary_structures;
+CREATE POLICY "Allow admins to manage structures"
+ON public.salary_structures FOR ALL TO authenticated
+USING (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+)
+WITH CHECK (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+);
+
+-- 2. Policies for employee_salaries
+DROP POLICY IF EXISTS "Allow users to view own salary" ON public.employee_salaries;
+CREATE POLICY "Allow users to view own salary"
+ON public.employee_salaries FOR SELECT TO authenticated
+USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Allow admins to manage employee salaries" ON public.employee_salaries;
+CREATE POLICY "Allow admins to manage employee salaries"
+ON public.employee_salaries FOR ALL TO authenticated
+USING (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+)
+WITH CHECK (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+);
+
+-- 3. Policies for payroll_runs
+DROP POLICY IF EXISTS "Allow admins to manage payroll runs" ON public.payroll_runs;
+CREATE POLICY "Allow admins to manage payroll runs"
+ON public.payroll_runs FOR ALL TO authenticated
+USING (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+)
+WITH CHECK (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+);
+
+DROP POLICY IF EXISTS "Allow authenticated users to read payroll runs" ON public.payroll_runs;
+CREATE POLICY "Allow authenticated users to read payroll runs"
+ON public.payroll_runs FOR SELECT TO authenticated USING (true);
+
+-- 4. Policies for payslips
+DROP POLICY IF EXISTS "Allow users to view own payslips" ON public.payslips;
+CREATE POLICY "Allow users to view own payslips"
+ON public.payslips FOR SELECT TO authenticated
+USING (auth.uid() = "userId");
+
+DROP POLICY IF EXISTS "Allow admins to manage payslips" ON public.payslips;
+CREATE POLICY "Allow admins to manage payslips"
+ON public.payslips FOR ALL TO authenticated
+USING (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+)
+WITH CHECK (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+);
+
+-- 5. Policies for salary_history
+DROP POLICY IF EXISTS "Allow users to view own salary history" ON public.salary_history;
+CREATE POLICY "Allow users to view own salary history"
+ON public.salary_history FOR SELECT TO authenticated
+USING (auth.uid() = "userId");
+
+DROP POLICY IF EXISTS "Allow admins to manage salary history" ON public.salary_history;
+CREATE POLICY "Allow admins to manage salary history"
+ON public.salary_history FOR ALL TO authenticated
+USING (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+)
+WITH CHECK (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+);
+
+-- ==========================================
+-- SCHEMA UPDATE: RUN THIS IF YOU GET SCHEMA CACHE ERRORS FOR NEW COLUMNS
+-- ==========================================
+ALTER TABLE public.employee_salaries ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD';
+ALTER TABLE public.employee_salaries ADD COLUMN IF NOT EXISTS net_salary NUMERIC NOT NULL DEFAULT 0.0;
+ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD';
+
+-- Force reload PostgREST schema cache to recognize new columns immediately
+NOTIFY pgrst, 'reload schema';
+
+

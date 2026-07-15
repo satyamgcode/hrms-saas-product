@@ -38,6 +38,11 @@ const routes = [
         name: 'admin-leaves',
         component: () => import('../components/admin/AdminLeaves.vue'),
       },
+      {
+        path: 'payroll',
+        name: 'admin-payroll',
+        component: () => import('../components/admin/AdminPayroll.vue'),
+      },
     ],
   },
   {
@@ -87,6 +92,11 @@ const routes = [
         path: 'leaves',
         name: 'leaves',
         component: () => import('../components/LeavesTab.vue'),
+      },
+      {
+        path: 'payslips',
+        name: 'payslips',
+        component: () => import('../components/PayslipsTab.vue'),
       },
     ],
   },

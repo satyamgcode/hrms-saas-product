@@ -63,6 +63,7 @@ const sideBarList = computed(() => {
     { text: 'Employee', route: '/overview', icon: employee },
     { text: 'User', route: '/users', icon: user },
     { text: 'Leave Management', route: '/leaves', icon: leaveIcon },
+    { text: 'Payslips & Salary', route: '/payslips', icon: mailbox },
     { text: 'Policy Documents', route: '/companypolicy', icon: shop },
     { text: 'Holidays', route: '/holidays', icon: Holiday },
   ];

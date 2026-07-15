@@ -7,6 +7,7 @@ const employeeDetails = [
    { text: 'Details', icon: 'mdi mdi-card-account-details', route: '/details' },
    { text: 'Contact', icon: 'mdi mdi-phone', route: '/contact' },
    { text: 'Documents', icon: 'mdi mdi-file-document', route: '/documents' },
+   { text: 'Salary & Payslips', icon: 'mdi mdi-cash-multiple', route: '/payslips' },
 ];
 
 const activeTab = ref('');
