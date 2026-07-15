@@ -57,6 +57,7 @@ const sideBarList = [
   { text: 'Employees', route: '/admin/employees', icon: 'mdi-account-group' },
   { text: 'Leave Approvals', route: '/admin/leaves', icon: 'mdi-calendar-clock' },
   { text: 'Payroll Management', route: '/admin/payroll', icon: 'mdi-cash-multiple' },
+  { text: 'Attendance Management', route: '/admin/attendance', icon: 'mdi-clock-check-outline' },
   { text: 'Company Policies', route: '/admin/policies', icon: 'mdi-file-document' },
   { text: 'Back to Profile', route: '/overview', icon: 'mdi-account-circle' }
 ];

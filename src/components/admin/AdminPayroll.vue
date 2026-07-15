@@ -16,6 +16,7 @@ import {
   calculateBreakdown,
   getSalaryHistory
 } from '../../services/payrollService';
+import { getAttendanceReport } from '../../services/attendanceService';
 
 // Tabs
 const activeTab = ref('dashboard');
@@ -299,6 +300,10 @@ const handleInitiatePayroll = async () => {
     // 1. Create payroll run record
     const run = await createPayrollRun(selectedMonth.value);
     
+    // Fetch monthly attendance report for all employees to integrate
+    const attReport = await getAttendanceReport(selectedMonth.value, adminCompanyId.value);
+    const workingDaysCount = attReport.workingDays || 22;
+
     // 2. Compute payslips for all active employees
     const generatedPayslips = [];
     employees.value.forEach(emp => {
@@ -322,18 +327,32 @@ const handleInitiatePayroll = async () => {
 
       const leavesCount = calculateApprovedLeaves(emp.id, selectedMonth.value);
 
+      // Attendance Deductions logic integration
+      const empAtt = attReport.reports?.find(r => r.employeeId === emp.id);
+      const absences = empAtt ? empAtt.absences : 0;
+      const presentDays = empAtt ? empAtt.presentDays : workingDaysCount;
+      const dailyWage = gross / workingDaysCount;
+      const unpaidDeduction = Number((dailyWage * absences).toFixed(2));
+      
+      const finalNetSalary = Number((payslipBase.net_salary - unpaidDeduction).toFixed(2));
+      const adjustmentNotes = unpaidDeduction > 0 
+        ? `Attendance: ${absences} days absent (Present: ${presentDays}/${workingDaysCount}d)` 
+        : 'Full attendance';
+
       generatedPayslips.push({
         payroll_run_id: run.id,
         userId: emp.id,
         month_year: selectedMonth.value,
         ...payslipBase,
         other_allowances: 0,
-        other_deductions: 0,
+        other_deductions: unpaidDeduction,
+        net_salary: finalNetSalary,
+        adjustment_notes: adjustmentNotes,
         payment_status: 'Pending',
         payment_method: salaryDetails?.payment_method || 'Bank Transfer',
         currency: salaryDetails?.currency || 'USD',
         leaves_taken: leavesCount,
-        working_days: 30,
+        working_days: workingDaysCount,
         user: emp // keeps a local ref for rendering
       });
     });

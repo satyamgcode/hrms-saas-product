@@ -12,6 +12,7 @@ import shop from '../assets/icons/shop.svg';
 import mailbox from '../assets/icons/mailbox.svg';
 import Holiday from '../assets/icons/holiday-calendar.svg';
 import leaveIcon from '../assets/icons/leave.svg';
+import performance from '../assets/icons/performance.svg';
 
 const orgName = ref('HRMS Software');
 const orgLogo = ref(defaultLogo);
@@ -63,6 +64,7 @@ const sideBarList = computed(() => {
     { text: 'Employee', route: '/overview', icon: employee },
     { text: 'User', route: '/users', icon: user },
     { text: 'Leave Management', route: '/leaves', icon: leaveIcon },
+    { text: 'Attendance Log', route: '/attendance', icon: performance },
     { text: 'Payslips & Salary', route: '/payslips', icon: mailbox },
     { text: 'Policy Documents', route: '/companypolicy', icon: shop },
     { text: 'Holidays', route: '/holidays', icon: Holiday },

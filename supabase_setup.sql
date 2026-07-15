@@ -584,4 +584,160 @@ ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'
 -- Force reload PostgREST schema cache to recognize new columns immediately
 NOTIFY pgrst, 'reload schema';
 
+-- ==========================================
+-- ATTENDANCE & SHIFT MANAGEMENT TABLES
+-- ==========================================
+
+-- 1. Shifts Table
+CREATE TABLE IF NOT EXISTS public.shifts (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  late_buffer INTEGER DEFAULT 15, -- minutes
+  "companyId" INTEGER DEFAULT 1 REFERENCES public.companies(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insert Default Shifts
+INSERT INTO public.shifts (id, name, start_time, end_time, late_buffer, "companyId")
+VALUES 
+  (1, 'General Shift', '09:00:00', '18:00:00', 15, 1),
+  (2, 'Morning Shift', '07:00:00', '15:00:00', 10, 1),
+  (3, 'Evening Shift', '15:00:00', '23:00:00', 10, 1),
+  (4, 'Night Shift', '23:00:00', '07:00:00', 15, 1)
+ON CONFLICT (id) DO NOTHING;
+
+-- Add shift_id to users table (if not exists)
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS "shift_id" INTEGER REFERENCES public.shifts(id) ON DELETE SET NULL;
+
+-- 2. Attendance Logs Table
+CREATE TABLE IF NOT EXISTS public.attendance (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  "userId" UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  clock_in TIMESTAMPTZ,
+  clock_out TIMESTAMPTZ,
+  working_hours NUMERIC DEFAULT 0.0,
+  status TEXT DEFAULT 'Absent', -- Present, Late, Half Day, Absent
+  shift_id INTEGER REFERENCES public.shifts(id) ON DELETE SET NULL,
+  "companyId" INTEGER DEFAULT 1 REFERENCES public.companies(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE("userId", date)
+);
+
+-- 3. Breaks Table
+CREATE TABLE IF NOT EXISTS public.breaks (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  attendance_id TEXT REFERENCES public.attendance(id) ON DELETE CASCADE,
+  "userId" UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  start_time TIMESTAMPTZ NOT NULL,
+  end_time TIMESTAMPTZ,
+  duration INTEGER DEFAULT 0, -- seconds
+  reason TEXT, -- Lunch, Tea, Meeting, Personal
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Attendance Corrections Table
+CREATE TABLE IF NOT EXISTS public.attendance_corrections (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  attendance_id TEXT REFERENCES public.attendance(id) ON DELETE SET NULL,
+  "userId" UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  requested_clock_in TIMESTAMPTZ,
+  requested_clock_out TIMESTAMPTZ,
+  reason TEXT,
+  status TEXT DEFAULT 'Pending', -- Pending, Approved, Rejected
+  approved_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  comments TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS on new tables
+ALTER TABLE public.shifts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.breaks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance_corrections ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+
+-- Shifts
+DROP POLICY IF EXISTS "Allow authenticated users to read shifts" ON public.shifts;
+CREATE POLICY "Allow authenticated users to read shifts"
+ON public.shifts FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow admins to manage shifts" ON public.shifts;
+CREATE POLICY "Allow admins to manage shifts"
+ON public.shifts FOR ALL TO authenticated
+USING (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+)
+WITH CHECK (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+);
+
+-- Attendance
+DROP POLICY IF EXISTS "Allow users to view own attendance" ON public.attendance;
+CREATE POLICY "Allow users to view own attendance"
+ON public.attendance FOR SELECT TO authenticated
+USING (auth.uid() = "userId");
+
+DROP POLICY IF EXISTS "Allow users to manage own attendance logs" ON public.attendance;
+CREATE POLICY "Allow users to manage own attendance logs"
+ON public.attendance FOR ALL TO authenticated
+USING (
+  auth.uid() = "userId" OR
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+)
+WITH CHECK (
+  auth.uid() = "userId" OR
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+);
+
+-- Breaks
+DROP POLICY IF EXISTS "Allow users to view own breaks" ON public.breaks;
+CREATE POLICY "Allow users to view own breaks"
+ON public.breaks FOR SELECT TO authenticated
+USING (auth.uid() = "userId");
+
+DROP POLICY IF EXISTS "Allow users to manage own breaks" ON public.breaks;
+CREATE POLICY "Allow users to manage own breaks"
+ON public.breaks FOR ALL TO authenticated
+USING (auth.uid() = "userId")
+WITH CHECK (auth.uid() = "userId");
+
+-- Corrections
+DROP POLICY IF EXISTS "Allow users to view own corrections" ON public.attendance_corrections;
+CREATE POLICY "Allow users to view own corrections"
+ON public.attendance_corrections FOR SELECT TO authenticated
+USING (auth.uid() = "userId");
+
+DROP POLICY IF EXISTS "Allow users to submit own corrections" ON public.attendance_corrections;
+CREATE POLICY "Allow users to submit own corrections"
+ON public.attendance_corrections FOR INSERT TO authenticated
+WITH CHECK (auth.uid() = "userId");
+
+DROP POLICY IF EXISTS "Allow admins to manage corrections" ON public.attendance_corrections;
+CREATE POLICY "Allow admins to manage corrections"
+ON public.attendance_corrections FOR ALL TO authenticated
+USING (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+)
+WITH CHECK (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+);
+
+-- Force reload schema cache for new tables
+NOTIFY pgrst, 'reload schema';
+
+
 

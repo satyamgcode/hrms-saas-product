@@ -43,6 +43,11 @@ const routes = [
         name: 'admin-payroll',
         component: () => import('../components/admin/AdminPayroll.vue'),
       },
+      {
+        path: 'attendance',
+        name: 'admin-attendance',
+        component: () => import('../components/admin/AdminAttendance.vue'),
+      },
     ],
   },
   {
@@ -97,6 +102,11 @@ const routes = [
         path: 'payslips',
         name: 'payslips',
         component: () => import('../components/PayslipsTab.vue'),
+      },
+      {
+        path: 'attendance',
+        name: 'attendance',
+        component: () => import('../components/AttendanceTab.vue'),
       },
     ],
   },
