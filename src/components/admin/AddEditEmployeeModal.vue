@@ -1,5 +1,6 @@
 <script setup>
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, onMounted } from 'vue';
+import { getCompany } from '../../services/api';
 
 const props = defineProps({
   show: Boolean,
@@ -11,6 +12,9 @@ const emit = defineEmits(['close', 'save']);
 const currentStep = ref(1);
 const formError = ref('');
 const loading = ref(false);
+
+const departmentsList = ref([]);
+const customDeptName = ref('');
 
 const initialForm = {
   name: '',
@@ -42,10 +46,37 @@ const initialForm = {
 
 const form = reactive({ ...initialForm });
 
-watch(() => props.show, (newVal) => {
+const loadDepartments = async () => {
+  try {
+    const company = await getCompany(props.employee?.companyId || 1);
+    if (company && Array.isArray(company.departments)) {
+      departmentsList.value = [...company.departments];
+    } else {
+      departmentsList.value = ['Software Development', 'Creative Design', 'Marketing', 'Sales', 'Human Resources', 'Finance'];
+    }
+  } catch (err) {
+    console.error('Error fetching departments:', err);
+    departmentsList.value = ['Software Development', 'Creative Design', 'Marketing', 'Sales', 'Human Resources', 'Finance'];
+  }
+
+  // Ensure current employee's department is in list
+  if (props.employee && props.employee.department) {
+    if (!departmentsList.value.includes(props.employee.department)) {
+      departmentsList.value.push(props.employee.department);
+    }
+  }
+};
+
+onMounted(() => {
+  loadDepartments();
+});
+
+watch(() => props.show, async (newVal) => {
   if (newVal) {
     currentStep.value = 1;
     formError.value = '';
+    customDeptName.value = '';
+    await loadDepartments();
     
     if (props.employee) {
       // Editing Mode
@@ -63,6 +94,19 @@ watch(() => props.show, (newVal) => {
     }
   }
 });
+
+const handleCustomDeptBlur = () => {
+  const val = customDeptName.value.trim();
+  if (val) {
+    if (!departmentsList.value.includes(val)) {
+      departmentsList.value.push(val);
+    }
+    form.department = val;
+  } else {
+    form.department = '';
+  }
+  customDeptName.value = '';
+};
 
 const nextStep = () => {
   if (currentStep.value === 1) {
@@ -200,9 +244,21 @@ const handleSubmit = async () => {
               </div>
               <div class="space-y-2">
                 <label class="text-xs font-black text-gray-500 uppercase tracking-widest">Department</label>
-                <input v-model="form.department" type="text" placeholder="Engineering" 
-                       class="w-full bg-gray-55 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent text-gray-800 font-semibold" />
+                <select v-model="form.department" 
+                        class="w-full bg-gray-55 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent text-gray-800 font-semibold">
+                  <option value="">Select Department</option>
+                  <option v-for="dept in departmentsList" :key="dept" :value="dept">{{ dept }}</option>
+                  <option value="custom_other">-- Other / Add New --</option>
+                </select>
               </div>
+            </div>
+
+            <div v-if="form.department === 'custom_other'" class="space-y-2">
+              <label class="text-xs font-black text-gray-500 uppercase tracking-widest">Custom Department Name</label>
+              <input v-model="customDeptName" type="text" placeholder="Enter department name" 
+                     @blur="handleCustomDeptBlur"
+                     @keyup.enter="handleCustomDeptBlur"
+                     class="w-full bg-gray-55 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent text-gray-800 font-semibold" />
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

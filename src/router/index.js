@@ -48,6 +48,11 @@ const routes = [
         name: 'admin-attendance',
         component: () => import('../components/admin/AdminAttendance.vue'),
       },
+      {
+        path: 'settings',
+        name: 'admin-settings',
+        component: () => import('../components/admin/AdminSettings.vue'),
+      },
     ],
   },
   {

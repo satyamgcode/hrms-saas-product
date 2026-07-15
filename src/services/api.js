@@ -95,6 +95,46 @@ export const updateUserProfile = async (userId, payload) => {
 export const getCompany = async (companyId = 1) => {
   const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle();
   throwIfError(error);
+  if (data) {
+    if (!data.departments) {
+      const stored = localStorage.getItem(`hrms_company_departments_${companyId}`);
+      data.departments = stored ? JSON.parse(stored) : ['Software Development', 'Creative Design', 'Marketing', 'Sales', 'Human Resources', 'Finance'];
+    }
+  }
+  return data;
+};
+
+export const updateCompany = async (companyId, payload) => {
+  const { data, error } = await supabase
+    .from('companies')
+    .update(payload)
+    .eq('id', companyId)
+    .select()
+    .maybeSingle();
+  
+  if (error) {
+    // If the error is due to a missing departments column, fall back to removing it and saving the rest
+    if (error.code === '42703' && payload.departments) {
+      console.warn('Departments column is missing in DB. Retrying update without departments column and saving departments locally.');
+      const { departments, ...cleanPayload } = payload;
+      
+      // Save departments to localStorage as fallback
+      localStorage.setItem(`hrms_company_departments_${companyId}`, JSON.stringify(departments));
+      
+      const { data: retryData, error: retryError } = await supabase
+        .from('companies')
+        .update(cleanPayload)
+        .eq('id', companyId)
+        .select()
+        .maybeSingle();
+      
+      throwIfError(retryError);
+      return { ...retryData, departments };
+    }
+    
+    throwIfError(error);
+  }
+  
   return data;
 };
 

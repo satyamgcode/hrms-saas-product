@@ -36,8 +36,16 @@ onMounted(async () => {
     email: authUser.email,
   };
 
+  await loadCompanyDetails(profile?.companyId || 1);
+
+  window.addEventListener('company-updated', async () => {
+    await loadCompanyDetails(profile?.companyId || 1);
+  });
+});
+
+const loadCompanyDetails = async (companyId) => {
   try {
-    const companyData = await getCompany(profile?.companyId || 1);
+    const companyData = await getCompany(companyId);
     if (companyData) {
       orgName.value = companyData.name;
       orgLogo.value = companyData.logo || defaultLogo;
@@ -45,7 +53,7 @@ onMounted(async () => {
   } catch (error) {
     console.error('Error fetching company info in Admin:', error);
   }
-});
+};
 
 const handleLogout = async () => {
   await supabase.auth.signOut();
@@ -95,7 +103,8 @@ watch(route, () => {
       <!-- Sidebar Header -->
       <div class="h-20 flex items-center px-6 border-b border-gray-100 flex-shrink-0">
         <div class="flex items-center min-w-0">
-          <div class="flex-shrink-0 w-10 h-10 bg-brand-purple/10 rounded-xl flex items-center justify-center mr-3 shadow-sm">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-brand-purple/10 rounded-xl flex items-center justify-center mr-3 shadow-sm">
             <img :src="orgLogo" alt="Logo" class="h-6 w-6 object-contain" />
           </div>
           <h1 v-show="!isSidebarCollapsed" class="text-lg font-black tracking-tight text-gray-900 truncate">
@@ -140,7 +149,8 @@ watch(route, () => {
 
           <div v-show="!isSidebarCollapsed" class="ml-3 flex-grow min-w-0">
             <p class="text-sm font-bold text-gray-900 truncate">{{ loggedInUser.name }}</p>
-            <p class="text-[10px] uppercase tracking-wider font-black text-gray-400 truncate">{{ loggedInUser.role }}</p>
+            <p class="text-[10px] uppercase tracking-wider font-black text-gray-400 truncate">{{ loggedInUser.role }}
+            </p>
           </div>
 
           <button v-show="!isSidebarCollapsed" @click="handleLogout"
@@ -177,12 +187,24 @@ watch(route, () => {
 
           <!-- Title -->
           <h2 class="text-xl font-extrabold text-gray-900 hidden sm:block">
-            {{ sideBarList.find(l => l.route === activeTab)?.text || 'Admin Panel' }}
+            {{activeTab === '/admin/settings' ? 'Company & HRMS Settings' : (sideBarList.find(l => l.route ===
+              activeTab)?.text || 'Admin Panel') }}
           </h2>
         </div>
 
-        <div class="flex items-center gap-4">
-          <span class="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 text-xs font-bold border border-purple-500/20">
+        <div class="flex items-center gap-3">
+          <!-- Settings Icon Button -->
+          <button @click="setActive({ text: 'Company & HRMS Settings', route: '/admin/settings' })" :class="[
+            'px-2.5 py-1 rounded-xl border transition-all flex items-center justify-center relative group',
+            activeTab === '/admin/settings'
+              ? 'bg-brand-purple border-brand-purple text-white shadow-lg shadow-brand-purple/20'
+              : 'bg-white border-gray-200 text-gray-400 hover:text-brand-purple hover:bg-brand-purple/10 hover:border-brand-purple/20'
+          ]" title="Settings">
+            <i class="mdi mdi-cog text-xl"></i>
+          </button>
+
+          <span
+            class="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 text-xs font-bold border border-purple-500/20">
             System Administrator Mode
           </span>
         </div>
@@ -206,20 +228,25 @@ watch(route, () => {
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #e5e7eb;
   border-radius: 10px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #d1d5db;
 }
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
 }
+
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;

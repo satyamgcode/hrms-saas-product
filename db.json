@@ -66,7 +66,8 @@
       "address": "123 Innovation Drive, Silicon Valley, CA",
       "phone": "+1 (555) 123-4567",
       "email": "info@techcorp.com",
-      "website": "www.techcorp.com"
+      "website": "www.techcorp.com",
+      "departments": ["Software Development", "Creative Design", "Marketing", "Sales", "Human Resources", "Finance"]
     }
   ],
   "holidays": [

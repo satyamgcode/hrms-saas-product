@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { adminApi } from '../../services/adminApi';
-import { getCurrentSession, getUserProfile } from '../../services/api';
+import { getCurrentSession, getUserProfile, getCompany } from '../../services/api';
 import AddEditEmployeeModal from './AddEditEmployeeModal.vue';
 
 const employees = ref([]);
@@ -9,6 +9,7 @@ const loading = ref(true);
 const search = ref('');
 const filterDepartment = ref('');
 const filterStatus = ref('');
+const companyDepartments = ref([]);
 
 const showModal = ref(false);
 const selectedEmployee = ref(null);
@@ -23,6 +24,12 @@ const loadEmployees = async () => {
       const profile = await getUserProfile({ userId: authUser.id });
       if (profile) {
         adminCompanyId.value = profile.companyId;
+        
+        // Load company departments
+        const company = await getCompany(profile.companyId);
+        if (company && Array.isArray(company.departments)) {
+          companyDepartments.value = company.departments;
+        }
       }
     }
     const data = await adminApi.getAllEmployees(adminCompanyId.value);
@@ -51,7 +58,10 @@ const filteredEmployees = computed(() => {
 });
 
 const departments = computed(() => {
-  const depts = new Set(employees.value.map(e => e.department).filter(Boolean));
+  const depts = new Set([
+    ...companyDepartments.value,
+    ...employees.value.map(e => e.department).filter(Boolean)
+  ]);
   return Array.from(depts);
 });
 

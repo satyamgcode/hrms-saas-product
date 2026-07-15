@@ -13,11 +13,12 @@ CREATE TABLE IF NOT EXISTS public.companies (
   phone TEXT,
   email TEXT,
   website TEXT,
+  departments TEXT[] DEFAULT ARRAY['Software Development', 'Creative Design', 'Marketing', 'Sales', 'Human Resources', 'Finance'],
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 2. Insert Default Company
-INSERT INTO public.companies (id, name, description, logo, address, phone, email, website)
+INSERT INTO public.companies (id, name, description, logo, address, phone, email, website, departments)
 VALUES (
   1, 
   'TechCorp Solutions', 
@@ -26,7 +27,8 @@ VALUES (
   '123 Innovation Drive, Silicon Valley, CA', 
   '+1 (555) 123-4567', 
   'info@techcorp.com', 
-  'www.techcorp.com'
+  'www.techcorp.com',
+  ARRAY['Software Development', 'Creative Design', 'Marketing', 'Sales', 'Human Resources', 'Finance']
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 3. Create Users (Employee Profile) Table linked to auth.users
@@ -327,19 +329,43 @@ USING (
 -- AUTHENTICATION TRIGGER FOR USER PROFILE
 -- ==========================================
 
--- Create or replace the handle_new_user function to respect the metadata role and companyId
+-- Create or replace the handle_new_user function to respect the metadata role and companyId,
+-- dynamically creating a new company record if an Admin registers with a custom company name.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
+DECLARE
+  new_company_id INTEGER;
+  company_name_val TEXT;
+  user_role TEXT;
 BEGIN
-  -- Insert into public.users (Employee Profiles)
+  -- Extract user role and custom company name from metadata
+  user_role := COALESCE(new.raw_user_meta_data->>'role', 'Employee');
+  company_name_val := new.raw_user_meta_data->>'company_name';
+  
+  -- If Admin signs up with a company name, insert a new company record
+  IF LOWER(user_role) = 'admin' AND company_name_val IS NOT NULL AND company_name_val <> '' THEN
+    INSERT INTO public.companies (name, description, email, website)
+    VALUES (
+      company_name_val,
+      'Workspace for ' || company_name_val || '. Configure your organization details in settings.',
+      new.email,
+      'www.' || lower(regexp_replace(company_name_val, '[^a-zA-Z0-9]', '', 'g')) || '.com'
+    )
+    RETURNING id INTO new_company_id;
+  ELSE
+    -- Otherwise, default to companyId 1 or use metadata companyId if present
+    new_company_id := COALESCE((new.raw_user_meta_data->>'companyId')::integer, 1);
+  END IF;
+
+  -- 1. Insert into public.users (Employee Profiles)
   INSERT INTO public.users (id, email, name, full_name, role, "companyId")
   VALUES (
     new.id,
     new.email,
     COALESCE(new.raw_user_meta_data->>'full_name', new.email),
     COALESCE(new.raw_user_meta_data->>'full_name', new.email),
-    COALESCE(new.raw_user_meta_data->>'role', 'Employee'),
-    COALESCE((new.raw_user_meta_data->>'companyId')::integer, 1)
+    user_role,
+    new_company_id
   )
   ON CONFLICT (id) DO UPDATE
   SET 
@@ -348,20 +374,22 @@ BEGIN
     full_name = EXCLUDED.full_name,
     "companyId" = COALESCE(EXCLUDED."companyId", public.users."companyId");
 
-  -- Insert into public.profiles (Admin & Company Onboarding Profiles)
-  INSERT INTO public.profiles (id, email, full_name, role, onboarding_step, is_onboarded)
+  -- 2. Insert into public.profiles (Admin & Company Onboarding Profiles)
+  INSERT INTO public.profiles (id, email, full_name, company_name, role, onboarding_step, is_onboarded)
   VALUES (
     new.id,
     new.email,
     COALESCE(new.raw_user_meta_data->>'full_name', new.email),
-    COALESCE(new.raw_user_meta_data->>'role', 'Employee'),
+    company_name_val,
+    user_role,
     1,
-    false
+    CASE WHEN LOWER(user_role) = 'admin' THEN false ELSE true END
   )
   ON CONFLICT (id) DO UPDATE
   SET 
     role = EXCLUDED.role,
-    full_name = EXCLUDED.full_name;
+    full_name = EXCLUDED.full_name,
+    company_name = COALESCE(EXCLUDED.company_name, public.profiles.company_name);
 
   RETURN new;
 END;
