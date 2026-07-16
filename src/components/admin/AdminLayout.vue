@@ -66,8 +66,7 @@ const sideBarList = [
   { text: 'Leave Approvals', route: '/admin/leaves', icon: 'mdi-calendar-clock' },
   { text: 'Payroll Management', route: '/admin/payroll', icon: 'mdi-cash-multiple' },
   { text: 'Attendance Management', route: '/admin/attendance', icon: 'mdi-clock-check-outline' },
-  { text: 'Company Policies', route: '/admin/policies', icon: 'mdi-file-document' },
-  { text: 'Back to Profile', route: '/overview', icon: 'mdi-account-circle' }
+  { text: 'Company Policies', route: '/admin/policies', icon: 'mdi-file-document' }
 ];
 
 const activeTab = ref(route.path);
@@ -96,7 +95,7 @@ watch(route, () => {
 
     <!-- Sidebar -->
     <aside :class="[
-      'fixed lg:static inset-y-0 left-0 z-[70] bg-white border-r border-gray-100 shadow-xl lg:shadow-none transition-all duration-300 ease-in-out flex flex-col',
+      'fixed lg:static inset-y-0 left-0 z-[70] bg-white border-r border-purple-200 shadow-xl lg:shadow-none transition-all duration-300 ease-in-out flex flex-col',
       isSidebarCollapsed ? 'w-20' : 'w-72',
       isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
     ]">
@@ -169,49 +168,59 @@ watch(route, () => {
     <!-- Main Content -->
     <main class="flex-grow flex flex-col min-w-0 overflow-hidden relative">
       <!-- Navbar / Header -->
-      <header class="h-20 flex items-center justify-between px-6 bg-white border-b border-gray-100 z-40 flex-shrink-0">
+      <header class="h-20 flex items-center justify-between px-8 bg-white/95 backdrop-blur-md border-b border-purple-100 z-40 flex-shrink-0">
         <div class="flex items-center gap-4">
           <!-- Mobile Menu Toggle -->
           <button @click="isMobileMenuOpen = true"
-            class="lg:hidden text-gray-500 hover:text-gray-900 rounded-xl transition-colors">
+            class="lg:hidden p-2 text-gray-500 hover:text-brand-purple hover:bg-brand-purple/10 rounded-xl transition-all">
             <i class="mdi mdi-menu text-2xl"></i>
           </button>
 
           <!-- Sidebar Collapse Toggle (Desktop) -->
           <button @click="toggleSidebar"
-            class="hidden lg:flex p-2 text-gray-400 hover:text-brand-purple hover:bg-brand-purple/10 rounded-xl transition-all">
+            class="hidden lg:flex p-2 text-gray-400 hover:text-brand-purple hover:bg-brand-purple/10 border border-transparent hover:border-brand-purple/10 rounded-xl transition-all shadow-sm">
             <i :class="['mdi text-2xl', isSidebarCollapsed ? 'mdi-menu-open' : 'mdi-menu']"></i>
           </button>
 
-          <div class="h-8 w-px bg-gray-100 mx-2 hidden lg:block"></div>
+          <div class="h-8 w-px bg-purple-100 mx-2 hidden lg:block"></div>
 
           <!-- Title -->
-          <h2 class="text-xl font-extrabold text-gray-900 hidden sm:block">
-            {{activeTab === '/admin/settings' ? 'Company & HRMS Settings' : (sideBarList.find(l => l.route ===
-              activeTab)?.text || 'Admin Panel') }}
+          <h2 class="text-lg font-black text-gray-950 tracking-tight hidden sm:block">
+            {{ activeTab === '/admin/settings' ? 'Company & HRMS Settings' : (sideBarList.find(l => l.route === activeTab)?.text || 'Admin Panel') }}
           </h2>
         </div>
 
         <div class="flex items-center gap-3">
+          <!-- Simple "Admin" Status Indicator -->
+          <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest bg-purple-50 text-purple-650 border border-purple-100 shadow-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
+            Admin
+          </span>
+
           <!-- Settings Icon Button -->
           <button @click="setActive({ text: 'Company & HRMS Settings', route: '/admin/settings' })" :class="[
-            'px-2.5 py-1 rounded-xl border transition-all flex items-center justify-center relative group',
+            'w-10 h-10 flex items-center justify-center rounded-xl border transition-all duration-200 relative group shadow-sm',
             activeTab === '/admin/settings'
-              ? 'bg-brand-purple border-brand-purple text-white shadow-lg shadow-brand-purple/20'
-              : 'bg-white border-gray-200 text-gray-400 hover:text-brand-purple hover:bg-brand-purple/10 hover:border-brand-purple/20'
+              ? 'bg-brand-purple border-brand-purple text-white shadow-md shadow-brand-purple/20'
+              : 'bg-white border-gray-200 text-gray-500 hover:text-brand-purple hover:bg-brand-purple/10 hover:border-brand-purple/20'
           ]" title="Settings">
-            <i class="mdi mdi-cog text-xl"></i>
+            <i class="mdi mdi-cog text-lg"></i>
           </button>
 
-          <span
-            class="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 text-xs font-bold border border-purple-500/20">
-            System Administrator Mode
-          </span>
+          <!-- Back to Employee Profile / View Button -->
+          <button 
+            @click="router.push('/overview')" 
+            class="flex items-center gap-2 px-5 py-2.5 border border-brand-orange/30 bg-brand-orange/10 hover:bg-brand-orange text-brand-orange hover:text-white rounded-xl font-bold text-xs transition-all duration-200 active:scale-95 shadow-md shadow-brand-orange/5"
+            title="Switch to Employee Workspace"
+          >
+            <i class="mdi mdi-account-circle text-base"></i>
+            <span>Employee View</span>
+          </button>
         </div>
       </header>
 
       <!-- View Area -->
-      <div class="flex-grow overflow-y-auto p-4 lg:p-6 custom-scrollbar bg-gray-50">
+      <div class="flex-grow overflow-y-auto p-4 lg:p-6 custom-scrollbar bg-purple-50">
         <div class="w-full mx-auto">
           <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">

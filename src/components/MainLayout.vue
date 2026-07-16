@@ -69,9 +69,6 @@ const sideBarList = computed(() => {
     { text: 'Policy Documents', route: '/companypolicy', icon: shop },
     { text: 'Holidays', route: '/holidays', icon: Holiday },
   ];
-  if (loggedInUser.value?.role?.toLowerCase() === 'admin') {
-    list.push({ text: 'Admin Panel', route: '/admin/dashboard', icon: user });
-  }
   return list;
 });
 
@@ -105,7 +102,7 @@ watch(route, () => {
 
     <!-- Sidebar -->
     <aside :class="[
-      'fixed lg:static inset-y-0 left-0 z-[70] bg-white border-r border-gray-100 shadow-xl lg:shadow-none transition-all duration-300 ease-in-out flex flex-col',
+      'fixed lg:static inset-y-0 left-0 z-[70] bg-white border-r border-purple-200 shadow-xl lg:shadow-none transition-all duration-300 ease-in-out flex flex-col',
       isSidebarCollapsed ? 'w-20' : 'w-72',
       isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
     ]">
@@ -179,25 +176,25 @@ watch(route, () => {
     <!-- Main Content -->
     <main class="flex-grow flex flex-col min-w-0 overflow-hidden relative">
       <!-- Navbar / Header -->
-      <header class="h-20 flex items-center justify-between px-6 bg-white border-b border-gray-100 z-40 flex-shrink-0">
+      <header class="h-20 flex items-center justify-between px-8 bg-white/95 backdrop-blur-md border-b border-purple-100 z-40 flex-shrink-0">
         <div class="flex items-center gap-4">
           <!-- Mobile Menu Toggle -->
           <button @click="toggleMobileMenu"
-            class="lg:hidden text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">
+            class="lg:hidden p-2 text-gray-500 hover:text-brand-purple hover:bg-brand-purple/10 rounded-xl transition-all">
             <i class="mdi mdi-menu text-2xl"></i>
           </button>
 
           <!-- Sidebar Collapse Toggle (Desktop) -->
           <button @click="toggleSidebar"
-            class="hidden lg:flex p-2 text-gray-400 hover:text-brand-purple hover:bg-brand-purple/10 rounded-xl transition-all">
+            class="hidden lg:flex p-2 text-gray-400 hover:text-brand-purple hover:bg-brand-purple/10 border border-transparent hover:border-brand-purple/10 rounded-xl transition-all shadow-sm">
             <i :class="['mdi text-2xl', isSidebarCollapsed ? 'mdi-menu-open' : 'mdi-menu']"></i>
           </button>
 
-          <div class="h-8 w-px bg-gray-100 mx-2 hidden lg:block"></div>
+          <div class="h-8 w-px bg-purple-100 mx-2 hidden lg:block"></div>
 
-          <!-- Dynamic Breadcrumb or Page Title -->
-          <h2 class="text-xl font-extrabold text-gray-900 hidden sm:block">
-            {{sideBarList.find(l => l.route === activeTab)?.text || 'Dashboard'}}
+          <!-- Dynamic Page Title -->
+          <h2 class="text-lg font-black text-gray-950 tracking-tight hidden sm:block">
+            {{ activeTab === '/settings' ? 'My Settings & Preferences' : (sideBarList.find(l => l.route === activeTab)?.text || 'Dashboard') }}
           </h2>
         </div>
 
@@ -207,7 +204,7 @@ watch(route, () => {
       </header>
 
       <!-- View Area -->
-      <div class="flex-grow overflow-y-auto p-2 lg:p-4 custom-scrollbar">
+      <div class="flex-grow overflow-y-auto p-2 lg:p-4 custom-scrollbar bg-purple-50">
         <div class="w-full mx-auto">
           <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
