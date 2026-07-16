@@ -113,6 +113,11 @@ const routes = [
         name: 'attendance',
         component: () => import('../components/AttendanceTab.vue'),
       },
+      {
+        path: 'settings',
+        name: 'settings',
+        component: () => import('../components/EmployeeSettings.vue'),
+      },
     ],
   },
 ];
