@@ -53,6 +53,11 @@ const routes = [
         name: 'admin-settings',
         component: () => import('../components/admin/AdminSettings.vue'),
       },
+      {
+        path: ':pathMatch(.*)*',
+        name: 'AdminNotFound',
+        component: () => import('../components/NotFoundPage.vue'),
+      },
     ],
   },
   {
@@ -117,6 +122,11 @@ const routes = [
         path: 'settings',
         name: 'settings',
         component: () => import('../components/EmployeeSettings.vue'),
+      },
+      {
+        path: ':pathMatch(.*)*',
+        name: 'EmployeeNotFound',
+        component: () => import('../components/NotFoundPage.vue'),
       },
     ],
   },

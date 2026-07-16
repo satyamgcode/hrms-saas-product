@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { getCurrentUser, getUserProfile } from '../services/api';
+import { getCurrentUser, getUserProfile, getCompany } from '../services/api';
 import { getEmployeeSalaryById, getPayslips, getSalaryHistory } from '../services/payrollService';
 import EmployeePage from './EmployeePage.vue';
 
@@ -10,6 +10,7 @@ const userProfile = ref(null);
 const employeeSalary = ref(null);
 const payslipsList = ref([]);
 const salaryRevisions = ref([]);
+const companyInfo = ref(null);
 
 // Modal
 const showPayslipModal = ref(false);
@@ -24,6 +25,10 @@ const loadEmployeePayrollData = async () => {
       const profile = await getUserProfile({ email: user.email });
       if (profile) {
         userProfile.value = profile;
+        
+        // Fetch company details
+        const companyId = profile.companyId || 1;
+        companyInfo.value = await getCompany(companyId);
         
         // Fetch payroll data for this specific user
         employeeSalary.value = await getEmployeeSalaryById(profile.id);
@@ -323,9 +328,9 @@ const viewPayslip = (payslip) => {
           <!-- Corporate Header -->
           <div class="flex items-start justify-between border-b-2 border-gray-900 pb-4">
             <div>
-              <h2 class="text-2xl font-black text-gray-900">TECHCORP SOLUTIONS</h2>
-              <p class="text-xs text-gray-500 font-bold mt-0.5">123 Innovation Drive, Silicon Valley, CA</p>
-              <p class="text-xs text-gray-400">info@techcorp.com | www.techcorp.com</p>
+              <h2 class="text-2xl font-black text-gray-900 uppercase">{{ companyInfo?.name || 'HRMS' }}</h2>
+              <p class="text-xs text-gray-500 font-bold mt-0.5">{{ companyInfo?.address || 'System Address' }}</p>
+              <p class="text-xs text-gray-400">{{ companyInfo?.email || 'info@hrms.com' }} | {{ companyInfo?.website || 'www.hrms.com' }}</p>
             </div>
             <div class="text-right">
               <h3 class="text-lg font-black text-gray-900 uppercase tracking-wide">PAYSLIP STATEMENT</h3>
