@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { getCurrentUser, getUserProfile, getUserDocuments, createDocument, updateDocument as updateDocumentApi, deleteDocument as deleteDocumentApi, uploadFile } from '../services/api';
 import EmployeePage from './EmployeePage.vue';
+import { addToast } from '../services/toastService';
 
 const documentTypes = [
   'CV', 
@@ -93,17 +94,17 @@ const saveDocument = async () => {
       uploadedDocuments.value.push(savedDoc);
       selectedDocumentType.value = '';
       selectedFile.value = null;
-      alert(`Document "${newDoc.name}" uploaded successfully!`);
+      addToast(`Document "${newDoc.name}" uploaded successfully!`, 'success');
     } catch (error) {
       console.error('Error saving document:', error);
-      alert(`Error saving document: ${error.message || error}`);
+      addToast(`Error saving document: ${error.message || error}`, 'error');
     }
   }
 };
 
 const previewDocument = (doc) => {
   if (!doc.url || doc.url === '#') {
-    alert('No preview URL available for this document.');
+    addToast('No preview URL available for this document.', 'warning');
     return;
   }
   
@@ -166,10 +167,10 @@ const handleUpdateFile = async (event) => {
         uploadedDocuments.value[index] = savedDoc;
       }
       documentToUpdate.value = null;
-      alert(`Document updated to "${file.name}" successfully!`);
+      addToast(`Document updated to "${file.name}" successfully!`, 'success');
     } catch (error) {
       console.error('Error updating document:', error);
-      alert(`Error updating document: ${error.message || error}`);
+      addToast(`Error updating document: ${error.message || error}`, 'error');
     }
   }
 };

@@ -21,11 +21,14 @@ const throwIfError = (error) => {
 
 export const adminApi = {
   async getAllEmployees(companyId) {
-    let query = supabase.from('users').select('*');
-    if (companyId) {
-      query = query.eq('companyId', companyId);
+    if (!companyId) {
+      return [];
     }
-    const { data, error } = await query.order('name', { ascending: true });
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('companyId', companyId)
+      .order('name', { ascending: true });
     throwIfError(error);
     return data ?? [];
   },

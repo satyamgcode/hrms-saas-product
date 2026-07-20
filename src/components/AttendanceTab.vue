@@ -13,6 +13,7 @@ import {
   getCorrectionsForUser,
   getShifts
 } from '../services/attendanceService';
+import { addToast } from '../services/toastService';
 
 // State variables
 const loading = ref(true);
@@ -65,8 +66,9 @@ const loadData = async () => {
     currentUserProfile.value = profile;
 
     // Load shifts to find active employee's shift
-    const shifts = await getShifts();
-    userShift.value = shifts.find(s => s.id === Number(profile?.shift_id || 1)) || shifts[0];
+    const shifts = await getShifts(profile?.companyId);
+    const defaultShift = { id: 1, name: 'General Shift', start_time: '09:00:00', end_time: '18:00:00', late_buffer: 15 };
+    userShift.value = shifts.find(s => s.id === Number(profile?.shift_id || 1)) || shifts[0] || defaultShift;
 
     // Load today's log status
     todayLog.value = await getTodayAttendance(user.id);
@@ -131,7 +133,7 @@ const handleClockIn = async () => {
     // Refresh history
     attendanceHistory.value = await getAttendanceHistory(currentUserId.value);
   } catch (err) {
-    alert('Clock-in failed: ' + err.message);
+    addToast('Clock-in failed: ' + err.message, 'error');
   }
 };
 
@@ -139,7 +141,7 @@ const handleClockOut = async () => {
   if (!todayLog.value) return;
   
   if (activeBreak.value) {
-    alert('Please end your break before clocking out.');
+    addToast('Please end your break before clocking out.', 'warning');
     return;
   }
 
@@ -150,7 +152,7 @@ const handleClockOut = async () => {
       // Refresh history
       attendanceHistory.value = await getAttendanceHistory(currentUserId.value);
     } catch (err) {
-      alert('Clock-out failed: ' + err.message);
+      addToast('Clock-out failed: ' + err.message, 'error');
     }
   }
 };
@@ -169,7 +171,7 @@ const handleStartBreak = async () => {
     // Update local status badge in todayLog
     todayLog.value.status = 'On Break';
   } catch (err) {
-    alert('Start break failed: ' + err.message);
+    addToast('Start break failed: ' + err.message, 'error');
   }
 };
 
@@ -183,7 +185,7 @@ const handleEndBreak = async () => {
     // Reset status from break to standard Clocked In check
     todayLog.value = await getTodayAttendance(currentUserId.value);
   } catch (err) {
-    alert('End break failed: ' + err.message);
+    addToast('End break failed: ' + err.message, 'error');
   }
 };
 

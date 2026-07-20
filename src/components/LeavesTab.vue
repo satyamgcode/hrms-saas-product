@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { getCurrentUser, getUserProfile, getLeaves, createLeave, deleteLeave } from '../services/api';
 import EmployeePage from './EmployeePage.vue';
+import { addToast } from '../services/toastService';
 
 const leaves = ref([]);
 const loading = ref(true);
@@ -151,7 +152,7 @@ const submitLeaveRequest = async () => {
     showRequestModal.value = false;
     // reset form
     leaveForm.value = { type: 'Casual', startDate: '', endDate: '', reason: '' };
-    alert('Leave request submitted successfully!');
+    addToast('Leave request submitted successfully!', 'success');
   } catch (err) {
     console.error(err);
     errorMessage.value = err.message || 'Failed to submit leave request.';
@@ -165,10 +166,10 @@ const cancelLeaveRequest = async (id) => {
     try {
       await deleteLeave(id);
       leaves.value = leaves.value.filter(l => l.id !== id);
-      alert('Leave request cancelled.');
+      addToast('Leave request cancelled.', 'success');
     } catch (err) {
       console.error(err);
-      alert('Failed to cancel request: ' + err.message);
+      addToast('Failed to cancel request: ' + err.message, 'error');
     }
   }
 };

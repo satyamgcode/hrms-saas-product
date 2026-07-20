@@ -186,14 +186,17 @@ seedShifts();
 // ----------------------------------------------------
 // SHIFT CONFIGURATION SERVICE
 // ----------------------------------------------------
-export const getShifts = async () => {
+export const getShifts = async (companyId) => {
   await ensureDbChecked();
   if (useLocalStorage) {
     return JSON.parse(localStorage.getItem('hrms_shifts') || '[]');
   }
-  const { data, error } = await supabase.from('shifts').select('*').order('name');
+  const { data, error } = await supabase
+    .from('shifts')
+    .select('*')
+    .order('name');
   if (error) throw error;
-  return data;
+  return data ?? [];
 };
 
 export const saveShift = async (shift) => {
@@ -517,13 +520,12 @@ export const getAttendanceHistory = async (userId) => {
 };
 
 // Admin monitoring
-export const getAllAttendanceToday = async (companyId = 1) => {
+export const getAllAttendanceToday = async (companyId) => {
   await ensureDbChecked();
   const dateStr = new Date().toISOString().split('T')[0];
 
   if (useLocalStorage) {
-    // Read from all active users in localStorage
-    const users = [{ id: '1', name: 'Satyam Gupta', email: 'testuser9@gmail.com', role: 'Admin' }, { id: '2', name: 'Jane Doe', email: 'jane@techcorp.com', role: 'Employee' }];
+    const users = [];
     const results = [];
     for (const u of users) {
       seedAttendanceAndBreaks(u.id);
@@ -651,31 +653,15 @@ export const getCorrectionsForUser = async (userId) => {
   return data;
 };
 
-export const getPendingCorrections = async (companyId = 1) => {
+export const getPendingCorrections = async (companyId) => {
   await ensureDbChecked();
   
+  if (!companyId) {
+    return [];
+  }
+
   const getFromLocalStorage = () => {
-    const allPending = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('hrms_corrections_')) {
-        const userId = key.replace('hrms_corrections_', '');
-        if (userId === '1' || userId === '2') {
-          seedAttendanceAndBreaks(userId);
-        }
-        const list = JSON.parse(localStorage.getItem(key) || '[]');
-        const pending = list.filter(c => c.status === 'Pending').map(c => ({
-          ...c,
-          user: {
-            id: c.userId,
-            name: c.userName || (c.userId === '1' ? 'Satyam Gupta' : c.userId === '2' ? 'Jane Doe' : 'Employee'),
-            email: c.userEmail || (c.userId === '1' ? 'testuser9@gmail.com' : c.userId === '2' ? 'jane@techcorp.com' : '')
-          }
-        }));
-        allPending.push(...pending);
-      }
-    }
-    return allPending;
+    return [];
   };
 
   if (useLocalStorage) {
@@ -683,18 +669,31 @@ export const getPendingCorrections = async (companyId = 1) => {
   }
 
   try {
+    const { data: users, error: userErr } = await supabase
+      .from('users')
+      .select('id')
+      .eq('companyId', companyId);
+    if (userErr) throw userErr;
+    
+    if (!users || users.length === 0) {
+      return [];
+    }
+
+    const userIds = users.map(u => u.id);
+
     const { data, error } = await supabase
       .from('attendance_corrections')
       .select('*, user:users!attendance_corrections_userId_fkey(id, name, full_name, email)')
       .eq('status', 'Pending')
+      .in('userId', userIds)
       .order('created_at', { ascending: false });
     if (error) throw error;
+    
     return data ?? [];
   } catch (err) {
     if (err.message?.includes('does not exist') || err.code === '42P01') {
-      console.warn("Table 'attendance_corrections' does not exist in Supabase. Falling back to localStorage mock data.");
-      useLocalStorage = true;
-      return getFromLocalStorage();
+      console.warn("Table 'attendance_corrections' does not exist in Supabase.");
+      return [];
     }
     throw err;
   }
@@ -838,7 +837,7 @@ export const reviewCorrection = async (correctionId, status, comments, adminUser
 // ----------------------------------------------------
 // ATTENDANCE REPORT & PAYROLL COUPLING
 // ----------------------------------------------------
-export const getAttendanceReport = async (monthStr, companyId = 1) => {
+export const getAttendanceReport = async (monthStr, companyId) => {
   await ensureDbChecked();
   const year = Number(monthStr.split('-')[0]);
   const month = Number(monthStr.split('-')[1]) - 1; // 0-indexed
@@ -860,10 +859,7 @@ export const getAttendanceReport = async (monthStr, companyId = 1) => {
   // Load all users
   let employees = [];
   if (useLocalStorage) {
-    employees = [
-      { id: '1', name: 'Satyam Gupta', email: 'testuser9@gmail.com', department: 'Management', role: 'Admin' },
-      { id: '2', name: 'Jane Doe', email: 'jane@techcorp.com', department: 'Engineering', role: 'Employee' }
-    ];
+    employees = [];
   } else {
     const { data: users, error } = await supabase
       .from('users')

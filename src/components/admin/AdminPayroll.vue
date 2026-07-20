@@ -17,6 +17,7 @@ import {
   getSalaryHistory
 } from '../../services/payrollService';
 import { getAttendanceReport } from '../../services/attendanceService';
+import { addToast } from '../../services/toastService';
 
 // Tabs
 const activeTab = ref('dashboard');
@@ -31,6 +32,7 @@ const tabs = [
 const loading = ref(true);
 const adminCompanyId = ref(1);
 const adminUserId = ref(null);
+const companyCurrency = ref('USD');
 const employees = ref([]);
 const structures = ref([]);
 const salaries = ref({});
@@ -94,14 +96,26 @@ const loadData = async () => {
       if (profile) {
         adminCompanyId.value = profile.companyId || 1;
       }
+      
+      const savedPrefs = localStorage.getItem(`hrms_preferences_${adminCompanyId.value}`);
+      if (savedPrefs) {
+        try {
+          const prefs = JSON.parse(savedPrefs);
+          if (prefs.currency) {
+            companyCurrency.value = prefs.currency;
+          }
+        } catch (e) {
+          console.error("Failed to parse preferences:", e);
+        }
+      }
     }
 
     // Fetch dependencies
     employees.value = await adminApi.getAllEmployees(adminCompanyId.value);
-    structures.value = await getSalaryStructures();
-    salaries.value = await getEmployeeSalaries();
-    runs.value = await getPayrollRuns();
-    history.value = await getSalaryHistory();
+    structures.value = await getSalaryStructures(adminCompanyId.value);
+    salaries.value = await getEmployeeSalaries(adminCompanyId.value);
+    runs.value = await getPayrollRuns(adminCompanyId.value);
+    history.value = await getSalaryHistory(null, adminCompanyId.value);
     
     try {
       leaves.value = await getLeaves({ companyId: adminCompanyId.value });
@@ -166,7 +180,7 @@ const handleSaveStructure = async () => {
   const f = structureForm.value;
   const totalPercent = Number(f.basic_percent) + Number(f.hra_percent) + Number(f.da_percent) + Number(f.special_allowance_percent);
   if (totalPercent !== 100) {
-    alert(`Earning percentages must sum to exactly 100%. Current sum: ${totalPercent}%`);
+    addToast(`Earning percentages must sum to exactly 100%. Current sum: ${totalPercent}%`, 'warning');
     return;
   }
 
@@ -184,7 +198,7 @@ const handleSaveStructure = async () => {
     showStructureModal.value = false;
   } catch (e) {
     console.error(e);
-    alert('Failed to save structure: ' + e.message);
+    addToast('Failed to save structure: ' + e.message, 'error');
   }
 };
 
@@ -194,7 +208,7 @@ const handleDeleteStructure = async (id) => {
       await deleteSalaryStructure(id);
       structures.value = structures.value.filter(s => s.id !== id);
     } catch (e) {
-      alert('Failed to delete structure: ' + e.message);
+      addToast('Failed to delete structure: ' + e.message, 'error');
     }
   }
 };
@@ -237,7 +251,7 @@ const handleSaveSalary = async () => {
   try {
     const struct = structures.value.find(s => s.id === Number(salaryForm.value.structure_id));
     if (!struct) {
-      alert('Please select a valid structure template.');
+      addToast('Please select a valid structure template.', 'warning');
       return;
     }
 
@@ -263,7 +277,7 @@ const handleSaveSalary = async () => {
     // Refresh history
     history.value = await getSalaryHistory();
   } catch (e) {
-    alert('Failed to save salary assignment: ' + e.message);
+    addToast('Failed to save salary assignment: ' + e.message, 'error');
   }
 };
 
@@ -298,7 +312,7 @@ const handleInitiatePayroll = async () => {
   isProcessing.value = true;
   try {
     // 1. Create payroll run record
-    const run = await createPayrollRun(selectedMonth.value);
+    const run = await createPayrollRun(selectedMonth.value, adminCompanyId.value);
     
     // Fetch monthly attendance report for all employees to integrate
     const attReport = await getAttendanceReport(selectedMonth.value, adminCompanyId.value);
@@ -361,11 +375,11 @@ const handleInitiatePayroll = async () => {
     const savedPayslips = await bulkSavePayslips(generatedPayslips);
     
     // Refresh local lists
-    runs.value = await getPayrollRuns();
+    runs.value = await getPayrollRuns(adminCompanyId.value);
     await loadPayrollRunForMonth();
 
   } catch (e) {
-    alert('Failed to initiate payroll: ' + e.message);
+    addToast('Failed to initiate payroll: ' + e.message, 'error');
   } finally {
     isProcessing.value = false;
   }
@@ -405,7 +419,7 @@ const handleSaveAdjustment = async () => {
       showAdjustmentModal.value = false;
     }
   } catch (e) {
-    alert('Failed to save adjustment: ' + e.message);
+    addToast('Failed to save adjustment: ' + e.message, 'error');
   }
 };
 
@@ -433,12 +447,25 @@ const handleFinalizePayroll = async (status) => {
       await updatePayrollRunStatus(currentRun.value.id, status, totals);
       
       // Reload runs
-      runs.value = await getPayrollRuns();
+      runs.value = await getPayrollRuns(adminCompanyId.value);
       await loadPayrollRunForMonth();
+      addToast(`Payroll run status transitioned to ${status} successfully!`, 'success');
     } catch (e) {
-      alert('Failed to finalize payroll status: ' + e.message);
+      addToast('Failed to finalize payroll status: ' + e.message, 'error');
     }
   }
+};
+
+// Helper to format mixed or single currency stats
+const formatCurrencyAmount = (usdVal, inrVal) => {
+  const parts = [];
+  if (usdVal > 0 || (usdVal === 0 && inrVal === 0)) {
+    parts.push(`$${Number(usdVal).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`);
+  }
+  if (inrVal > 0) {
+    parts.push(`₹${Number(inrVal).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`);
+  }
+  return parts.join(' / ');
 };
 
 // Dashboard Stats & Graph Allocation
@@ -446,40 +473,86 @@ const dashboardStats = computed(() => {
   const activeRuns = runs.value.filter(r => r.status === 'Paid');
   const latestRun = activeRuns[0] || null;
   
-  let totalSalaries = 0;
-  let employeeCount = employees.value.filter(e => e.status !== 'inactive').length;
+  let usdGrossTotal = 0;
+  let inrGrossTotal = 0;
+  let usdCount = 0;
+  let inrCount = 0;
+  let activeEmployeeCount = employees.value.filter(e => e.status !== 'inactive').length;
+
   Object.values(salaries.value).forEach(s => {
-    totalSalaries += Number(s.gross_salary || 0);
+    const gross = Number(s.gross_salary || 0);
+    if (s.currency === 'INR') {
+      inrGrossTotal += gross;
+      inrCount++;
+    } else {
+      usdGrossTotal += gross;
+      usdCount++;
+    }
   });
+
+  const usdAvg = usdCount > 0 ? (usdGrossTotal / usdCount).toFixed(2) : '0.00';
+  const inrAvg = inrCount > 0 ? (inrGrossTotal / inrCount).toFixed(2) : '0.00';
+
+  let averageSalaryStr = '';
+  if (usdCount > 0 && inrCount > 0) {
+    averageSalaryStr = `$${Number(usdAvg).toLocaleString()} / ₹${Number(inrAvg).toLocaleString()}`;
+  } else if (inrCount > 0) {
+    averageSalaryStr = `₹${Number(inrAvg).toLocaleString()}`;
+  } else {
+    averageSalaryStr = `$${Number(usdAvg).toLocaleString()}`;
+  }
+
+  let totalGrossPayrollStr = '';
+  if (usdGrossTotal > 0 && inrGrossTotal > 0) {
+    totalGrossPayrollStr = `$${usdGrossTotal.toLocaleString()} / ₹${inrGrossTotal.toLocaleString()}`;
+  } else if (inrGrossTotal > 0) {
+    totalGrossPayrollStr = `₹${inrGrossTotal.toLocaleString()}`;
+  } else {
+    totalGrossPayrollStr = `$${usdGrossTotal.toLocaleString()}`;
+  }
 
   return {
     latestPaidMonth: latestRun ? latestRun.month_year : 'No paid month',
     latestTotalPayout: latestRun ? latestRun.total_net : 0,
-    averageSalary: employeeCount ? (totalSalaries / employeeCount).toFixed(2) : '0.00',
-    totalEmployees: employeeCount,
-    totalGrossPayroll: totalSalaries
+    averageSalary: averageSalaryStr,
+    totalEmployees: activeEmployeeCount,
+    totalGrossPayroll: totalGrossPayrollStr
   };
 });
 
 const departmentAllocation = computed(() => {
   const allocation = {};
-  let totalGross = 0;
-
+  
   employees.value.forEach(emp => {
     if (emp.status === 'inactive') return;
     const salary = salaries.value[emp.id];
     const gross = Number(salary?.gross_salary || 0);
+    const curr = salary?.currency || 'USD';
     const dept = emp.department || 'General';
     
-    allocation[dept] = (allocation[dept] || 0) + gross;
-    totalGross += gross;
+    if (!allocation[dept]) {
+      allocation[dept] = { USD: 0, INR: 0 };
+    }
+    allocation[dept][curr] += gross;
   });
 
-  return Object.keys(allocation).map(dept => ({
-    name: dept,
-    amount: allocation[dept],
-    percentage: totalGross ? ((allocation[dept] / totalGross) * 100).toFixed(1) : 0
-  })).sort((a, b) => b.amount - a.amount);
+  return Object.keys(allocation).map(dept => {
+    const usdAmt = allocation[dept].USD;
+    const inrAmt = allocation[dept].INR;
+    
+    const amountStr = formatCurrencyAmount(usdAmt, inrAmt);
+
+    const deptEmployees = employees.value.filter(e => e.status !== 'inactive' && (e.department || 'General') === dept).length;
+    const totalActive = employees.value.filter(e => e.status !== 'inactive').length;
+    const percentage = totalActive ? Math.round((deptEmployees / totalActive) * 100) : 0;
+
+    return {
+      name: dept,
+      amountStr,
+      percentage,
+      totalVal: usdAmt + inrAmt // for sorting
+    };
+  }).sort((a, b) => b.totalVal - a.totalVal);
 });
 </script>
 
@@ -529,7 +602,7 @@ const departmentAllocation = computed(() => {
             <div class="w-10 h-10 rounded-xl bg-purple-50 text-brand-purple flex items-center justify-center mb-4">
               <i class="mdi mdi-cash-multiple text-xl"></i>
             </div>
-            <p class="text-2xl font-black text-gray-900">${{ dashboardStats.latestTotalPayout.toLocaleString() }}</p>
+            <p class="text-2xl font-black text-gray-900">{{ getCurrencySymbol(companyCurrency) }}{{ dashboardStats.latestTotalPayout.toLocaleString() }}</p>
             <p class="text-xs font-bold text-gray-400 uppercase mt-1">Payout ({{ dashboardStats.latestPaidMonth }})</p>
           </div>
 
@@ -537,7 +610,7 @@ const departmentAllocation = computed(() => {
             <div class="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center mb-4">
               <i class="mdi mdi-calculator text-xl"></i>
             </div>
-            <p class="text-2xl font-black text-gray-900">${{ Number(dashboardStats.averageSalary).toLocaleString() }}</p>
+            <p class="text-2xl font-black text-gray-900">{{ dashboardStats.averageSalary }}</p>
             <p class="text-xs font-bold text-gray-400 uppercase mt-1">Average Gross Salary</p>
           </div>
 
@@ -553,7 +626,7 @@ const departmentAllocation = computed(() => {
             <div class="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
               <i class="mdi mdi-bank-transfer text-xl"></i>
             </div>
-            <p class="text-2xl font-black text-gray-900">${{ dashboardStats.totalGrossPayroll.toLocaleString() }}</p>
+            <p class="text-2xl font-black text-gray-900">{{ dashboardStats.totalGrossPayroll }}</p>
             <p class="text-xs font-bold text-gray-400 uppercase mt-1">Total Monthly Liability</p>
           </div>
         </div>
@@ -569,7 +642,7 @@ const departmentAllocation = computed(() => {
               <div v-for="dept in departmentAllocation" :key="dept.name" class="space-y-2">
                 <div class="flex items-center justify-between text-sm font-bold text-gray-700">
                   <span>{{ dept.name }}</span>
-                  <span>${{ dept.amount.toLocaleString() }} ({{ dept.percentage }}%)</span>
+                  <span>{{ dept.amountStr }} ({{ dept.percentage }}%)</span>
                 </div>
                 <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
                   <div class="h-full bg-brand-purple rounded-full transition-all duration-500" :style="{ width: `${dept.percentage}%` }"></div>
@@ -604,7 +677,7 @@ const departmentAllocation = computed(() => {
                       <div class="flex-grow min-w-0 pt-1.5 flex justify-between space-x-4">
                         <div>
                           <p class="text-sm font-black text-gray-900">Payroll {{ run.month_year }}</p>
-                          <p class="text-xs text-gray-500">Processed: ${{ run.total_net?.toLocaleString() }}</p>
+                          <p class="text-xs text-gray-500">Processed: {{ getCurrencySymbol(companyCurrency) }}{{ run.total_net?.toLocaleString() }}</p>
                         </div>
                         <div class="text-right text-xs font-bold text-gray-400">
                           <span :class="[

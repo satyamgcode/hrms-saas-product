@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { getLeaves, updateLeaveStatus, getCurrentSession, getUserProfile } from '../../services/api';
+import { addToast } from '../../services/toastService';
 
 const leaves = ref([]);
 const loading = ref(true);
@@ -87,7 +88,7 @@ const openActionModal = (id, status) => {
 
 const submitAction = async () => {
   if (actionModal.value.status === 'Rejected' && !actionModal.value.comments.trim()) {
-    alert('Please provide a reason/comments for the rejection.');
+    addToast('Please provide a reason/comments for the rejection.', 'warning');
     return;
   }
 
@@ -110,10 +111,10 @@ const submitAction = async () => {
     }
     
     actionModal.value.show = false;
-    alert(`Leave request ${actionModal.value.status.toLowerCase()} successfully!`);
+    addToast(`Leave request ${actionModal.value.status.toLowerCase()} successfully!`, 'success');
   } catch (error) {
     console.error('Failed to update leave status:', error);
-    alert('Failed to update status: ' + error.message);
+    addToast('Failed to update status: ' + error.message, 'error');
   } finally {
     actionModal.value.submitting = false;
   }

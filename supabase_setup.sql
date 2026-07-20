@@ -485,6 +485,7 @@ CREATE TABLE IF NOT EXISTS public.payslips (
   currency TEXT DEFAULT 'USD',
   leaves_taken INTEGER DEFAULT 0,
   working_days INTEGER DEFAULT 30,
+  adjustment_notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE("userId", month_year)
@@ -608,6 +609,7 @@ WITH CHECK (
 ALTER TABLE public.employee_salaries ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD';
 ALTER TABLE public.employee_salaries ADD COLUMN IF NOT EXISTS net_salary NUMERIC NOT NULL DEFAULT 0.0;
 ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD';
+ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS adjustment_notes TEXT;
 
 -- Force reload PostgREST schema cache to recognize new columns immediately
 NOTIFY pgrst, 'reload schema';

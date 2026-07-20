@@ -134,6 +134,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getCompany, getUserProfile } from '../services/api';
 import { authService } from '../services/authService';
+import { supabase } from '../utils/supabase';
 
 const router = useRouter();
 const email = ref('');
@@ -174,9 +175,32 @@ const handleSignIn = async () => {
   try {
     const data = await authService.signIn(email.value, password.value);
     const user = data?.user;
+    const session = data?.session;
     if (user) {
       const profile = await getUserProfile({ email: user.email });
       if (profile?.role?.toLowerCase() === 'admin') {
+        // Query onboarding status from public.profiles
+        const { data: onboarding } = await supabase
+          .from('profiles')
+          .select('is_onboarded, onboarding_step')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (onboarding && !onboarding.is_onboarded) {
+          const websiteUrl = import.meta.env.VITE_WEBSITE_URL || 'http://localhost:5174';
+          const step = onboarding.onboarding_step || 1;
+          const stepPaths = {
+            1: '/onboarding/organization-setup',
+            2: '/onboarding/profile-setup',
+            3: '/onboarding/invite-team',
+            4: '/onboarding/current-project',
+            5: '/onboarding/choose-plan'
+          };
+          const target = stepPaths[step] || '/onboarding/organization-setup';
+          const redirectUrl = `${websiteUrl}${target}?refresh_token=${encodeURIComponent(session?.refresh_token || '')}`;
+          window.location.href = redirectUrl;
+          return;
+        }
         router.push('/admin/dashboard');
       } else {
         router.push('/overview');

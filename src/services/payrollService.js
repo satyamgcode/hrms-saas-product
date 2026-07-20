@@ -64,83 +64,12 @@ const seedLocalStorage = () => {
   }
 
   if (!localStorage.getItem('hrms_payroll_runs')) {
-    const defaultRuns = [
-      {
-        id: 1,
-        month_year: '2026-05',
-        status: 'Paid',
-        total_employees: 2,
-        total_gross: 18000,
-        total_deductions: 3280,
-        total_net: 14720,
-        processed_at: '2026-05-30T17:00:00.000Z',
-        created_at: '2026-05-30T09:00:00.000Z'
-      },
-      {
-        id: 2,
-        month_year: '2026-06',
-        status: 'Paid',
-        total_employees: 2,
-        total_gross: 18000,
-        total_deductions: 3280,
-        total_net: 14720,
-        processed_at: '2026-06-30T17:00:00.000Z',
-        created_at: '2026-06-30T09:00:00.000Z'
-      }
-    ];
+    const defaultRuns = [];
     localStorage.setItem('hrms_payroll_runs', JSON.stringify(defaultRuns));
   }
 
   if (!localStorage.getItem('hrms_payslips')) {
-    const defaultPayslips = [
-      // June 2026 Payslips
-      {
-        id: 'mock-ps-1',
-        payroll_run_id: 2,
-        userId: '1', // Admin Satyam Gupta
-        month_year: '2026-06',
-        gross_salary: 10000.0,
-        basic_salary: 5000.0,
-        hra: 2000.0,
-        da: 1000.0,
-        special_allowance: 2000.0,
-        pf_deduction: 600.0,
-        professional_tax: 200.0,
-        tds_deduction: 1000.0,
-        other_allowances: 0.0,
-        other_deductions: 0.0,
-        net_salary: 8200.0,
-        payment_status: 'Paid',
-        payment_method: 'Bank Transfer',
-        payment_date: '2026-06-30',
-        leaves_taken: 1,
-        working_days: 30,
-        created_at: '2026-06-30T17:00:00.000Z'
-      },
-      {
-        id: 'mock-ps-2',
-        payroll_run_id: 2,
-        userId: '2', // Employee Jane Doe
-        month_year: '2026-06',
-        gross_salary: 8000.0,
-        basic_salary: 4000.0,
-        hra: 1600.0,
-        da: 800.0,
-        special_allowance: 1600.0,
-        pf_deduction: 480.0,
-        professional_tax: 200.0,
-        tds_deduction: 800.0,
-        other_allowances: 0.0,
-        other_deductions: 0.0,
-        net_salary: 6520.0,
-        payment_status: 'Paid',
-        payment_method: 'Bank Transfer',
-        payment_date: '2026-06-30',
-        leaves_taken: 2,
-        working_days: 30,
-        created_at: '2026-06-30T17:00:00.000Z'
-      }
-    ];
+    const defaultPayslips = [];
     localStorage.setItem('hrms_payslips', JSON.stringify(defaultPayslips));
   }
 
@@ -155,6 +84,21 @@ seedLocalStorage();
 
 // Helper calculation function
 export const calculateBreakdown = (gross, structure) => {
+  if (gross <= 0) {
+    return {
+      gross_salary: 0,
+      basic_salary: 0,
+      hra: 0,
+      da: 0,
+      special_allowance: 0,
+      pf_deduction: 0,
+      professional_tax: 0,
+      tds_deduction: 0,
+      other_allowances: 0,
+      other_deductions: 0,
+      net_salary: 0
+    };
+  }
   const basic = Number(((gross * (structure.basic_percent ?? 50)) / 100).toFixed(2));
   const hra = Number(((gross * (structure.hra_percent ?? 20)) / 100).toFixed(2));
   const da = Number(((gross * (structure.da_percent ?? 10)) / 100).toFixed(2));
@@ -176,53 +120,42 @@ export const calculateBreakdown = (gross, structure) => {
     tds_deduction: tds,
     other_allowances: 0,
     other_deductions: 0,
-    net_salary: Number((gross - (pf + pt + tds)).toFixed(2))
+    net_salary: Number(Math.max(0, gross - (pf + pt + tds)).toFixed(2))
   };
 };
 
 // ----------------------------------------------------
 // SALARY STRUCTURES SERVICE
 // ----------------------------------------------------
-export const getSalaryStructures = async () => {
+export const getSalaryStructures = async (companyId) => {
   await ensureDbChecked();
   if (useLocalStorage) {
     const list = JSON.parse(localStorage.getItem('hrms_salary_structures') || '[]');
-    if (list.length === 0) {
-      const defaultStructures = [
-        {
-          id: 1,
-          name: 'Standard IT Structure',
-          description: 'Default structure for engineering and office personnel',
-          basic_percent: 50.0,
-          hra_percent: 20.0,
-          da_percent: 10.0,
-          special_allowance_percent: 20.0,
-          pf_percent: 12.0,
-          professional_tax: 200.0,
-          tds_percent: 10.0,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 2,
-          name: 'Executive Management Structure',
-          description: 'For directors, managers, and executives with higher tax bracket',
-          basic_percent: 45.0,
-          hra_percent: 25.0,
-          da_percent: 10.0,
-          special_allowance_percent: 20.0,
-          pf_percent: 12.0,
-          professional_tax: 200.0,
-          tds_percent: 20.0,
-          created_at: new Date().toISOString()
-        }
-      ];
-      localStorage.setItem('hrms_salary_structures', JSON.stringify(defaultStructures));
-      return defaultStructures;
+    if (companyId) {
+      return list.filter(s => s.companyId === companyId);
     }
     return list;
   }
   
-  const { data, error } = await supabase.from('salary_structures').select('*').order('name');
+  let finalCompanyId = companyId;
+  if (!finalCompanyId) {
+    const session = await getCurrentSession();
+    const authUser = session?.user;
+    if (authUser) {
+      const profile = await getUserProfile({ userId: authUser.id });
+      finalCompanyId = profile?.companyId;
+    }
+  }
+
+  if (!finalCompanyId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('salary_structures')
+    .select('*')
+    .eq('companyId', finalCompanyId)
+    .order('name');
   if (error) throw error;
 
   if (data && data.length === 0) {
@@ -237,7 +170,7 @@ export const getSalaryStructures = async () => {
         pf_percent: 12.0,
         professional_tax: 200.0,
         tds_percent: 10.0,
-        "companyId": 1
+        "companyId": finalCompanyId
       },
       {
         name: 'Executive Management Structure',
@@ -249,7 +182,7 @@ export const getSalaryStructures = async () => {
         pf_percent: 12.0,
         professional_tax: 200.0,
         tds_percent: 20.0,
-        "companyId": 1
+        "companyId": finalCompanyId
       }
     ];
     const { data: insertedData, error: insertError } = await supabase
@@ -312,21 +245,37 @@ export const deleteSalaryStructure = async (id) => {
 // ----------------------------------------------------
 // EMPLOYEE SALARY ALLOCATIONS SERVICE
 // ----------------------------------------------------
-export const getEmployeeSalaries = async () => {
+export const getEmployeeSalaries = async (companyId) => {
   await ensureDbChecked();
   if (useLocalStorage) {
     const salaries = JSON.parse(localStorage.getItem('hrms_employee_salaries') || '{}');
     return salaries;
   }
 
-  const { data, error } = await supabase.from('employee_salaries').select('*');
+  if (!companyId) {
+    return {};
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, employee_salaries(*)')
+    .eq('companyId', companyId);
   if (error) throw error;
   
   // Transform into mapping object: { [userId]: salaryObj }
   const mapping = {};
-  data.forEach(item => {
-    mapping[item.id] = item;
-  });
+  if (data) {
+    data.forEach(user => {
+      if (user.employee_salaries) {
+        // PostgREST returns a single object or an array. In a 1-to-1 relationship, it is returned as an object.
+        // Let's handle both cases just in case.
+        const salary = Array.isArray(user.employee_salaries) ? user.employee_salaries[0] : user.employee_salaries;
+        if (salary) {
+          mapping[user.id] = salary;
+        }
+      }
+    });
+  }
   return mapping;
 };
 
@@ -426,33 +375,42 @@ export const saveEmployeeSalary = async (salaryAllocation) => {
 // ----------------------------------------------------
 // PAYROLL RUNS SERVICE
 // ----------------------------------------------------
-export const getPayrollRuns = async () => {
+export const getPayrollRuns = async (companyId) => {
   await ensureDbChecked();
   if (useLocalStorage) {
-    return JSON.parse(localStorage.getItem('hrms_payroll_runs') || '[]')
-      .sort((a, b) => b.month_year.localeCompare(a.month_year));
+    const list = JSON.parse(localStorage.getItem('hrms_payroll_runs') || '[]');
+    if (companyId) {
+      return list.filter(r => r.companyId === companyId)
+        .sort((a, b) => b.month_year.localeCompare(a.month_year));
+    }
+    return list.sort((a, b) => b.month_year.localeCompare(a.month_year));
+  }
+
+  if (!companyId) {
+    return [];
   }
 
   const { data, error } = await supabase
     .from('payroll_runs')
     .select('*')
+    .eq('companyId', companyId)
     .order('month_year', { ascending: false });
 
   if (error) throw error;
   return data;
 };
 
-export const createPayrollRun = async (monthYear) => {
+export const createPayrollRun = async (monthYear, companyId) => {
   await ensureDbChecked();
   if (useLocalStorage) {
     const list = JSON.parse(localStorage.getItem('hrms_payroll_runs') || '[]');
-    const exists = list.find(r => r.month_year === monthYear);
+    const exists = list.find(r => r.month_year === monthYear && r.companyId === companyId);
     if (exists) {
       return exists;
     }
     const newRun = {
       id: list.length ? Math.max(...list.map(r => r.id)) + 1 : 1,
-      companyId: 1,
+      companyId: companyId || 1,
       month_year: monthYear,
       status: 'Draft',
       total_employees: 0,
@@ -466,9 +424,25 @@ export const createPayrollRun = async (monthYear) => {
     return newRun;
   }
 
+  if (!companyId) {
+    throw new Error('companyId is required to create a payroll run.');
+  }
+
+  // Check if a run already exists for this company and month
+  const { data: existingRun, error: checkError } = await supabase
+    .from('payroll_runs')
+    .select('*')
+    .eq('companyId', companyId)
+    .eq('month_year', monthYear)
+    .maybeSingle();
+
+  if (existingRun) {
+    return existingRun;
+  }
+
   const { data, error } = await supabase
     .from('payroll_runs')
-    .insert({ month_year: monthYear, status: 'Draft', "companyId": 1 })
+    .insert({ month_year: monthYear, status: 'Draft', "companyId": companyId })
     .select()
     .single();
 
@@ -615,10 +589,37 @@ export const bulkSavePayslips = async (payslipsList) => {
     return item;
   });
 
-  const { data, error } = await supabase
+  if (cleanPayslips.length === 0) {
+    return [];
+  }
+
+  let { data, error } = await supabase
     .from('payslips')
-    .upsert(cleanPayslips)
+    .upsert(cleanPayslips, { onConflict: 'userId,month_year' })
     .select();
+
+  if (error && (error.message?.includes('adjustment_notes') || error.details?.includes('adjustment_notes') || error.message?.includes('schema cache'))) {
+    console.warn("Column 'adjustment_notes' is missing or not cached in 'payslips' table. Retrying without it.");
+    const cleanWithoutNotes = cleanPayslips.map(p => {
+      const item = { ...p };
+      delete item.adjustment_notes;
+      return item;
+    });
+    const retryResult = await supabase
+      .from('payslips')
+      .upsert(cleanWithoutNotes, { onConflict: 'userId,month_year' })
+      .select();
+    
+    if (retryResult.error) throw retryResult.error;
+    
+    if (retryResult.data) {
+      retryResult.data = retryResult.data.map((item, idx) => ({
+        ...item,
+        adjustment_notes: cleanPayslips[idx]?.adjustment_notes || ''
+      }));
+    }
+    return retryResult.data;
+  }
 
   if (error) throw error;
   return data;
@@ -627,7 +628,7 @@ export const bulkSavePayslips = async (payslipsList) => {
 // ----------------------------------------------------
 // SALARY HISTORY SERVICE
 // ----------------------------------------------------
-export const getSalaryHistory = async (userId = null) => {
+export const getSalaryHistory = async (userId = null, companyId = null) => {
   await ensureDbChecked();
   if (useLocalStorage) {
     const history = JSON.parse(localStorage.getItem('hrms_salary_history') || '[]');
@@ -637,11 +638,33 @@ export const getSalaryHistory = async (userId = null) => {
     return history.sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
 
-  let query = supabase.from('salary_history').select('*');
   if (userId) {
-    query = query.eq('userId', userId);
+    const { data, error } = await supabase
+      .from('salary_history')
+      .select('*')
+      .eq('userId', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
   }
-  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (!companyId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, salary_history(*)')
+    .eq('companyId', companyId);
   if (error) throw error;
-  return data;
+
+  const list = [];
+  if (data) {
+    data.forEach(user => {
+      if (Array.isArray(user.salary_history)) {
+        list.push(...user.salary_history);
+      }
+    });
+  }
+  return list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 };

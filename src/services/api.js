@@ -149,11 +149,14 @@ export const getPolicies = async (companyId) => {
     }
   }
 
-  let query = supabase.from('policies').select('*');
-  if (finalCompanyId) {
-    query = query.eq('companyId', finalCompanyId);
+  if (!finalCompanyId) {
+    return [];
   }
-  const { data, error } = await query;
+
+  const { data, error } = await supabase
+    .from('policies')
+    .select('*')
+    .eq('companyId', finalCompanyId);
   throwIfError(error);
   return data ?? [];
 };
@@ -202,11 +205,14 @@ export const getUsers = async (companyId) => {
     }
   }
 
-  let query = supabase.from('users').select('*');
-  if (finalCompanyId) {
-    query = query.eq('companyId', finalCompanyId);
+  if (!finalCompanyId) {
+    return [];
   }
-  const { data, error } = await query
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('companyId', finalCompanyId)
     .order('role', { ascending: true })
     .order('name', { ascending: true });
   throwIfError(error);

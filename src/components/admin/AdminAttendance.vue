@@ -12,6 +12,7 @@ import {
   reviewCorrection,
   getAttendanceReport
 } from '../../services/attendanceService';
+import { addToast } from '../../services/toastService';
 
 // Tabs
 const activeTab = ref('monitor');
@@ -68,7 +69,7 @@ const loadData = async () => {
 
     // Fetch lists
     employees.value = await adminApi.getAllEmployees(adminCompanyId.value);
-    shifts.value = await getShifts();
+    shifts.value = await getShifts(adminCompanyId.value);
 
     // Load active tab data
     await loadTabSpecificData();
@@ -144,18 +145,18 @@ const formatTime = (isoString) => {
 const handleCorrectionReview = async (correctionId, status, targetUserId) => {
   const comments = reviewComments.value[correctionId] || '';
   if (status === 'Rejected' && !comments.trim()) {
-    alert('Please enter a rejection comment to explain the decision.');
+    addToast('Please enter a rejection comment to explain the decision.', 'warning');
     return;
   }
 
   if (confirm(`Are you sure you want to mark this request as ${status}?`)) {
     try {
       await reviewCorrection(correctionId, status, comments, adminUserId.value, targetUserId);
-      alert(`Correction request has been ${status.toLowerCase()} successfully!`);
+      addToast(`Correction request has been ${status.toLowerCase()} successfully!`, 'success');
       // Reload tab list
       pendingCorrections.value = await getPendingCorrections(adminCompanyId.value);
     } catch (e) {
-      alert('Failed to update correction status: ' + e.message);
+      addToast('Failed to update correction status: ' + e.message, 'error');
     }
   }
 };
@@ -187,7 +188,7 @@ const filteredReports = computed(() => {
 const exportReportCSV = () => {
   const reportsList = filteredReports.value;
   if (!reportsList.length) {
-    alert('No report logs available to export.');
+    addToast('No report logs available to export.', 'warning');
     return;
   }
 
@@ -252,7 +253,7 @@ const openEditShift = (shift) => {
 
 const handleSaveShift = async () => {
   if (!shiftForm.value.name || !shiftForm.value.start_time || !shiftForm.value.end_time) {
-    alert('Please fill out all shift settings fields.');
+    addToast('Please fill out all shift settings fields.', 'warning');
     return;
   }
 
@@ -262,11 +263,11 @@ const handleSaveShift = async () => {
       companyId: adminCompanyId.value
     };
     await saveShift(payload);
-    alert('Shift settings saved successfully!');
-    shifts.value = await getShifts();
+    addToast('Shift settings saved successfully!', 'success');
+    shifts.value = await getShifts(adminCompanyId.value);
     showShiftModal.value = false;
   } catch (e) {
-    alert('Failed to save shift: ' + e.message);
+    addToast('Failed to save shift: ' + e.message, 'error');
   }
 };
 
@@ -274,10 +275,10 @@ const handleDeleteShift = async (id) => {
   if (confirm('Are you sure you want to delete this shift? Active employees assigned to it will default to General Shift.')) {
     try {
       await deleteShift(id);
-      shifts.value = await getShifts();
-      alert('Shift deleted successfully.');
+      shifts.value = await getShifts(adminCompanyId.value);
+      addToast('Shift deleted successfully.', 'success');
     } catch (e) {
-      alert('Failed to delete shift: ' + e.message);
+      addToast('Failed to delete shift: ' + e.message, 'error');
     }
   }
 };
@@ -292,9 +293,9 @@ const handleAssignShift = async (empId, shiftId) => {
     if (idx !== -1) {
       employees.value[idx].shift_id = shiftId;
     }
-    alert('Shift assigned to employee successfully!');
+    addToast('Shift assigned to employee successfully!', 'success');
   } catch (e) {
-    alert('Failed to assign shift: ' + e.message);
+    addToast('Failed to assign shift: ' + e.message, 'error');
   }
 };
 </script>

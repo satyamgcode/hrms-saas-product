@@ -79,7 +79,7 @@ const fetchData = async () => {
     employees.value = users || [];
 
     // 3. Fetch Shifts
-    const shifts = await getShifts();
+    const shifts = await getShifts(companyId.value);
     shiftsList.value = shifts || [];
 
     // 4. Load saved preferences from localStorage
@@ -593,9 +593,6 @@ const savePreferences = () => {
             >
               <option value="USD">USD ($) - United States Dollar</option>
               <option value="INR">INR (₹) - Indian Rupee</option>
-              <option value="EUR">EUR (€) - Euro</option>
-              <option value="GBP">GBP (£) - British Pound</option>
-              <option value="CAD">CAD ($) - Canadian Dollar</option>
             </select>
           </div>
 

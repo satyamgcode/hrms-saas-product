@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { getPolicies, createPolicy, getCurrentUser, getUserProfile, uploadFile, deletePolicy } from '../services/api';
+import { addToast } from '../services/toastService';
 
 const fileInput = ref(null);
 const documents = ref([]);
@@ -44,10 +45,10 @@ const handleFileUpload = async (event) => {
             
             const savedDoc = await createPolicy(newDocument);
             documents.value.push(savedDoc);
-            alert(`Policy "${newDocument.name}" uploaded successfully!`);
+            addToast(`Policy "${newDocument.name}" uploaded successfully!`, 'success');
         } catch (error) {
             console.error('Error uploading document:', error);
-            alert(`Error uploading policy: ${error.message || error}`);
+            addToast(`Error uploading policy: ${error.message || error}`, 'error');
         } finally {
             event.target.value = ''; // Reset file input so same file can be selected again
         }
@@ -56,7 +57,7 @@ const handleFileUpload = async (event) => {
 
 const viewPolicy = (policy) => {
   if (!policy.url || policy.url === '#') {
-    alert('No preview URL available for this policy.');
+    addToast('No preview URL available for this policy.', 'warning');
     return;
   }
   
@@ -90,10 +91,10 @@ const deletePolicyItem = async (doc) => {
             if (index !== -1) {
                 documents.value.splice(index, 1);
             }
-            alert(`Policy "${doc.name}" deleted successfully!`);
+            addToast(`Policy "${doc.name}" deleted successfully!`, 'success');
         } catch (error) {
             console.error('Error deleting policy:', error);
-            alert(`Error deleting policy: ${error.message || error}`);
+            addToast(`Error deleting policy: ${error.message || error}`, 'error');
         }
     }
 };

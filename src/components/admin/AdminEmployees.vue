@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { adminApi } from '../../services/adminApi';
 import { getCurrentSession, getUserProfile, getCompany } from '../../services/api';
 import AddEditEmployeeModal from './AddEditEmployeeModal.vue';
+import { addToast } from '../../services/toastService';
 
 const employees = ref([]);
 const loading = ref(true);
@@ -95,7 +96,7 @@ const handleSave = async (formData) => {
     showModal.value = false;
   } catch (error) {
     console.error('Error saving employee:', error);
-    alert('Failed to save employee profile: ' + error.message);
+    addToast('Failed to save employee profile: ' + error.message, 'error');
   }
 };
 
@@ -109,7 +110,7 @@ const handleDelete = async (emp) => {
       }
     } catch (error) {
       console.error('Error deactivating employee:', error);
-      alert('Failed to deactivate: ' + error.message);
+      addToast('Failed to deactivate: ' + error.message, 'error');
     }
   }
 };

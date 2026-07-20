@@ -151,6 +151,27 @@ router.beforeEach(async (to) => {
       // User is already signed in. Check role to redirect.
       const profile = await getUserProfile({ email: session.user.email });
       if (profile?.role?.toLowerCase() === 'admin') {
+        // Query onboarding status from public.profiles
+        const { data: onboarding } = await supabase
+          .from('profiles')
+          .select('is_onboarded, onboarding_step')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (onboarding && !onboarding.is_onboarded) {
+          const websiteUrl = import.meta.env.VITE_WEBSITE_URL || 'http://localhost:5174';
+          const step = onboarding.onboarding_step || 1;
+          const stepPaths = {
+            1: '/onboarding/organization-setup',
+            2: '/onboarding/profile-setup',
+            3: '/onboarding/invite-team',
+            4: '/onboarding/current-project',
+            5: '/onboarding/choose-plan'
+          };
+          const target = stepPaths[step] || '/onboarding/organization-setup';
+          window.location.href = `${websiteUrl}${target}?refresh_token=${encodeURIComponent(session.refresh_token)}`;
+          return false;
+        }
         return { path: '/admin/dashboard' };
       }
       return { path: '/overview' };
@@ -162,9 +183,34 @@ router.beforeEach(async (to) => {
     return { path: '/signin' };
   }
 
+  // Check onboarding and role
+  const profile = await getUserProfile({ email: session.user.email });
+  if (profile?.role?.toLowerCase() === 'admin') {
+    // Query onboarding status from public.profiles
+    const { data: onboarding } = await supabase
+      .from('profiles')
+      .select('is_onboarded, onboarding_step')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (onboarding && !onboarding.is_onboarded) {
+      const websiteUrl = import.meta.env.VITE_WEBSITE_URL || 'http://localhost:5174';
+      const step = onboarding.onboarding_step || 1;
+      const stepPaths = {
+        1: '/onboarding/organization-setup',
+        2: '/onboarding/profile-setup',
+        3: '/onboarding/invite-team',
+        4: '/onboarding/current-project',
+        5: '/onboarding/choose-plan'
+      };
+      const target = stepPaths[step] || '/onboarding/organization-setup';
+      window.location.href = `${websiteUrl}${target}?refresh_token=${encodeURIComponent(session.refresh_token)}`;
+      return false;
+    }
+  }
+
   // Check role restriction for admin panel
   if (to.path.startsWith('/admin')) {
-    const profile = await getUserProfile({ email: session.user.email });
     if (profile?.role?.toLowerCase() !== 'admin') {
       console.warn('Unauthorized admin access attempt. Redirecting to employee overview.');
       return { path: '/overview' };
