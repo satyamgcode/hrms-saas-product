@@ -198,6 +198,7 @@ const handleSignIn = async () => {
           };
           const target = stepPaths[step] || '/onboarding/organization-setup';
           const redirectUrl = `${websiteUrl}${target}?refresh_token=${encodeURIComponent(session?.refresh_token || '')}`;
+          await supabase.auth.signOut();
           window.location.href = redirectUrl;
           return;
         }

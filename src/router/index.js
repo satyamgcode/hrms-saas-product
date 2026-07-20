@@ -159,18 +159,27 @@ router.beforeEach(async (to) => {
           .maybeSingle();
 
         if (onboarding && !onboarding.is_onboarded) {
-          const websiteUrl = import.meta.env.VITE_WEBSITE_URL || 'http://localhost:5174';
-          const step = onboarding.onboarding_step || 1;
-          const stepPaths = {
-            1: '/onboarding/organization-setup',
-            2: '/onboarding/profile-setup',
-            3: '/onboarding/invite-team',
-            4: '/onboarding/current-project',
-            5: '/onboarding/choose-plan'
-          };
-          const target = stepPaths[step] || '/onboarding/organization-setup';
-          window.location.href = `${websiteUrl}${target}?refresh_token=${encodeURIComponent(session.refresh_token)}`;
-          return false;
+          if (refreshToken) {
+            const websiteUrl = import.meta.env.VITE_WEBSITE_URL || 'http://localhost:5174';
+            const step = onboarding.onboarding_step || 1;
+            const stepPaths = {
+              1: '/onboarding/organization-setup',
+              2: '/onboarding/profile-setup',
+              3: '/onboarding/invite-team',
+              4: '/onboarding/current-project',
+              5: '/onboarding/choose-plan'
+            };
+            const target = stepPaths[step] || '/onboarding/organization-setup';
+            const targetUrl = `${websiteUrl}${target}?refresh_token=${encodeURIComponent(session.refresh_token)}`;
+            await supabase.auth.signOut();
+            window.location.href = targetUrl;
+            return false;
+          } else {
+            // User manually navigated to /signin with an un-onboarded session active.
+            // Clear the un-onboarded session so user can sign in with different credentials.
+            await supabase.auth.signOut();
+            return true;
+          }
         }
         return { path: '/admin/dashboard' };
       }
@@ -204,7 +213,9 @@ router.beforeEach(async (to) => {
         5: '/onboarding/choose-plan'
       };
       const target = stepPaths[step] || '/onboarding/organization-setup';
-      window.location.href = `${websiteUrl}${target}?refresh_token=${encodeURIComponent(session.refresh_token)}`;
+      const targetUrl = `${websiteUrl}${target}?refresh_token=${encodeURIComponent(session.refresh_token)}`;
+      await supabase.auth.signOut();
+      window.location.href = targetUrl;
       return false;
     }
   }
