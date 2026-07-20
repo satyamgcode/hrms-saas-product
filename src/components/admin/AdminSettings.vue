@@ -352,11 +352,11 @@ const savePreferences = () => {
           <div class="w-full">
             <h3 class="text-sm font-black text-gray-400 uppercase tracking-widest text-left mb-6">Company Brand</h3>
             
-            <div class="relative group w-32 h-32 mx-auto mb-4 bg-gray-50 rounded-3xl border border-gray-150 flex items-center justify-center overflow-hidden shadow-inner">
-              <img :src="companyData.logo || defaultLogo" alt="Logo" class="max-w-[75%] max-h-[75%] object-contain" />
+            <div class="relative group w-32 h-32 mx-auto mb-4 bg-gray-50 rounded-full border border-gray-150 flex items-center justify-center overflow-hidden shadow-sm">
+              <img :src="companyData.logo || defaultLogo" alt="Logo" class="w-full h-full object-cover" />
               
               <!-- Hover Overlay for upload -->
-              <label class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white cursor-pointer transition-all duration-300 rounded-3xl">
+              <label class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white cursor-pointer transition-all duration-300 rounded-full">
                 <i class="mdi mdi-camera-plus-outline text-2xl mb-1"></i>
                 <span class="text-[10px] font-black uppercase tracking-wider">Update Logo</span>
                 <input type="file" class="hidden" accept="image/*" @change="handleLogoUpload" :disabled="saving" />

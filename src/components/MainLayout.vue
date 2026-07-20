@@ -39,7 +39,18 @@ onMounted(async () => {
     name: profile?.full_name || authUser.user_metadata?.full_name || authUser.email || 'User',
     role: profile?.role || 'Employee',
     email: authUser.email,
+    avatar: profile?.avatar,
   };
+
+  window.addEventListener('user-profile-updated', (e) => {
+    if (e.detail) {
+      loggedInUser.value = {
+        ...loggedInUser.value,
+        name: e.detail.full_name || loggedInUser.value.name,
+        avatar: e.detail.avatar,
+      };
+    }
+  });
 
   try {
     const companyData = await getCompany(companyId);
@@ -94,49 +105,45 @@ watch(route, () => {
 </script>
 
 <template>
-  <div class="flex h-screen bg-gray-50 font-sans overflow-hidden">
+  <div class="min-h-screen bg-gray-50 flex font-['Outfit',sans-serif]">
     <!-- Mobile Overlay -->
     <div v-if="isMobileMenuOpen" class="fixed inset-0 bg-black/50 z-[60] lg:hidden backdrop-blur-sm transition-opacity"
       @click="isMobileMenuOpen = false">
     </div>
 
-    <!-- Sidebar -->
+    <!-- Desktop Sidebar -->
     <aside :class="[
-      'fixed lg:static inset-y-0 left-0 z-[70] bg-white border-r border-purple-200 shadow-xl lg:shadow-none transition-all duration-300 ease-in-out flex flex-col',
-      isSidebarCollapsed ? 'w-20' : 'w-72',
-      isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      'hidden lg:flex flex-col bg-white border-r border-gray-100 transition-all duration-300 z-30 sticky top-0 h-screen',
+      isSidebarCollapsed ? 'w-20' : 'w-64'
     ]">
-      <!-- Sidebar Header -->
-      <div class="h-20 flex items-center px-6 border-b border-gray-50 flex-shrink-0">
-        <div class="flex items-center min-w-0">
-          <div
-            class="flex-shrink-0 w-10 h-10 bg-brand-purple/10 rounded-xl flex items-center justify-center mr-3 shadow-sm">
-            <img :src="orgLogo" alt="Logo" class="h-6 w-6 object-contain" />
+      <!-- Organization Logo/Name -->
+      <div class="p-6 flex items-center justify-between border-b border-gray-50">
+        <div v-show="!isSidebarCollapsed" class="flex items-center gap-3 min-w-0">
+          <div class="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden border border-gray-100 shadow-sm">
+            <img :src="orgLogo" :alt="orgName" class="w-full h-full object-cover" />
           </div>
-          <h1 v-show="!isSidebarCollapsed" class="text-lg font-black tracking-tight text-gray-900">
-            {{ orgName }}
-          </h1>
+          <span class="font-bold text-gray-900 text-lg truncate">{{ orgName }}</span>
+        </div>
+        <div v-show="isSidebarCollapsed" class="mx-auto w-10 h-10 rounded-full overflow-hidden border border-gray-100 shadow-sm">
+          <img :src="orgLogo" :alt="orgName" class="w-full h-full object-cover" />
         </div>
       </div>
 
-      <!-- Navigation Menu -->
-      <nav class="flex-grow py-6 px-4 space-y-1.5 custom-scrollbar">
-        <div v-for="link in sideBarList" :key="link.text" @click="setActive(link)" :class="[
-          'group flex items-center p-3 rounded-2xl transition-all duration-200 cursor-pointer relative',
-          activeTab === link.route
-            ? 'bg-brand-purple text-white shadow-lg shadow-brand-purple/25'
-            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-        ]">
-          <div :class="[
-            'flex-shrink-0 transition-transform group-hover:scale-110',
-            isSidebarCollapsed ? 'mx-auto' : 'mr-4',
-            activeTab === link.route ? 'brightness-0 invert' : ''
+      <!-- Navigation Links -->
+      <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+        <div v-for="link in sideBarList" :key="link.route" class="relative group">
+          <router-link :to="link.route" :class="[
+            'flex items-center px-4 py-3 rounded-2xl font-semibold text-sm transition-all duration-200',
+            route.path === link.route
+              ? 'bg-brand-purple text-white shadow-lg shadow-brand-purple/25'
+              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
           ]">
-            <img :src="link.icon" class="w-5 h-5" />
-          </div>
-          <span v-show="!isSidebarCollapsed" class="text-sm font-bold whitespace-nowrap">{{ link.text }}</span>
+            <img :src="link.icon" class="w-5 h-5 flex-shrink-0"
+              :class="{ 'brightness-0 invert': route.path === link.route }" />
+            <span v-show="!isSidebarCollapsed" class="ml-3 truncate">{{ link.text }}</span>
+          </router-link>
 
-          <!-- Tooltip for collapsed mode -->
+          <!-- Tooltip when sidebar collapsed -->
           <div v-if="isSidebarCollapsed"
             class="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
             {{ link.text }}
@@ -149,8 +156,8 @@ watch(route, () => {
         <div
           :class="['flex items-center', isSidebarCollapsed ? 'justify-center' : 'p-2 bg-white rounded-2xl shadow-sm border border-gray-100']">
           <div class="relative flex-shrink-0">
-            <img :src="`https://ui-avatars.com/api/?name=${loggedInUser.name}&background=8A3EEA&color=fff`"
-              alt="Profile" class="w-10 h-10 rounded-full border-2 border-brand-purple/10 shadow-sm" />
+            <img :src="loggedInUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(loggedInUser.name)}&background=8A3EEA&color=fff`"
+              alt="Profile" class="w-10 h-10 rounded-full border-2 border-brand-purple/10 shadow-sm object-cover" />
             <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
           </div>
 

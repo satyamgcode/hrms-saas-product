@@ -4,8 +4,10 @@ import { ref, onMounted } from 'vue';
 import { getCurrentUser, getUserProfile, updateUserProfile } from '../services/api';
 
 const isEditing = ref(false);
+const saving = ref(false);
 
 const employeeData = ref({
+  id: null,
   name: 'Loading...',
   role: '',
   department: '',
@@ -55,23 +57,24 @@ const toggleEditMode = () => {
 };
 
 const updateDetails = async () => {
+  if (!employeeData.value.id) return;
+  saving.value = true;
   try {
-    // Map properties back to database columns
-    employeeData.value.joining_date = employeeData.value.joiningDate;
-    employeeData.value.avatar = employeeData.value.profilePicture;
-    
-    const updated = await updateUserProfile(employeeData.value.id, employeeData.value);
+    const updated = await updateUserProfile(employeeData.value.id, {
+      phone: employeeData.value.phone,
+      bio: employeeData.value.bio
+    });
     if (updated) {
-      employeeData.value = {
-        ...employeeData.value,
-        ...updated,
-        joiningDate: updated.joining_date || employeeData.value.joiningDate,
-        profilePicture: updated.avatar || employeeData.value.profilePicture
-      };
+      employeeData.value.phone = updated.phone !== undefined ? updated.phone : employeeData.value.phone;
+      employeeData.value.bio = updated.bio !== undefined ? updated.bio : employeeData.value.bio;
+      isEditing.value = false;
+    } else {
       isEditing.value = false;
     }
   } catch (error) {
     console.error('Error updating details:', error);
+  } finally {
+    saving.value = false;
   }
 };
 </script>
@@ -89,10 +92,10 @@ const updateDetails = async () => {
             </div>
             <div>
               <h2 class="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-                Profile Settings
+                Profile Details
               </h2>
               <p class="text-gray-500 font-medium mt-1">
-                Manage your personal information and preferences
+                View your official information and update contact details
               </p>
             </div>
           </div>
@@ -100,14 +103,14 @@ const updateDetails = async () => {
           <button
             @click="toggleEditMode"
             :class="[
-              'group relative flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-bold transition-all duration-300 overflow-hidden',
+              'flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex-shrink-0 active:scale-95 shadow-sm',
               isEditing 
-                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' 
-                : 'bg-purple-600 text-white hover:bg-purple-700 shadow-xl shadow-purple-500/25 hover:-translate-y-0.5'
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+                : 'bg-purple-600 text-white hover:bg-purple-700 shadow-purple-500/20'
             ]"
           >
-            <i :class="['mdi transition-transform group-hover:scale-110', isEditing ? 'mdi-close' : 'mdi-pencil-outline']"></i>
-            {{ isEditing ? 'Cancel Edit' : 'Edit Profile' }}
+            <i :class="['mdi text-base', isEditing ? 'mdi-close' : 'mdi-pencil-outline']"></i>
+            <span>{{ isEditing ? 'Cancel Edit' : 'Edit Profile' }}</span>
           </button>
         </div>
       </div>
@@ -120,15 +123,12 @@ const updateDetails = async () => {
           <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden">
             <div class="h-24 bg-gradient-to-r from-purple-600 to-indigo-600"></div>
             <div class="px-6 pb-8 -mt-12 text-center">
-              <div class="relative inline-block group">
+              <div class="relative inline-block">
                 <img
                   :src="employeeData.profilePicture"
                   alt="Profile"
-                  class="w-32 h-32 rounded-3xl object-cover border-4 border-white shadow-xl mb-4 transition-transform group-hover:scale-105"
+                  class="w-32 h-32 rounded-3xl object-cover border-4 border-white shadow-xl mb-4"
                 />
-                <div v-if="isEditing" class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <i class="mdi mdi-camera text-white text-2xl"></i>
-                </div>
               </div>
               <h3 class="text-xl font-black text-gray-900 break-words leading-tight">
                 {{ employeeData.name }}
@@ -192,15 +192,17 @@ const updateDetails = async () => {
                 </div>
                 <div>
                   <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Phone Number</label>
-                  <a :href="`tel:${employeeData.phone}`" class="text-gray-900 font-bold hover:text-purple-600 transition-colors">
+                  <a v-if="employeeData.phone" :href="`tel:${employeeData.phone}`" class="text-gray-900 font-bold hover:text-purple-600 transition-colors">
                     {{ employeeData.phone }}
                   </a>
+                  <p v-else class="text-gray-400 font-bold text-sm">Not provided</p>
                 </div>
                 <div>
                   <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Personal Website</label>
-                  <a :href="employeeData.website" target="_blank" class="text-purple-600 font-bold hover:underline break-all">
+                  <a v-if="employeeData.website" :href="employeeData.website" target="_blank" class="text-purple-600 font-bold hover:underline break-all">
                     {{ employeeData.website }}
                   </a>
+                  <p v-else class="text-gray-400 font-bold text-sm">Not provided</p>
                 </div>
               </div>
             </div>
@@ -241,109 +243,126 @@ const updateDetails = async () => {
             </div>
           </div>
 
-          <!-- Edit Mode Form -->
-          <div v-else class="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100">
-            <h4 class="text-xl font-black text-gray-900 mb-8 border-b border-gray-50 pb-4">
-              Edit Your Information
-            </h4>
+          <!-- Edit Mode Form (Compact, No Tag Badges) -->
+          <div v-else class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+            <div class="border-b border-gray-100 pb-3">
+              <h4 class="text-lg font-black text-gray-900">
+                Edit Profile Information
+              </h4>
+            </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Full Name (Read-Only) -->
+              <div class="space-y-1">
+                <label class="text-xs font-bold text-gray-500 ml-0.5">Full Name</label>
                 <div class="relative">
-                  <i class="mdi mdi-account absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                  <i class="mdi mdi-account absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
                   <input
                     type="text"
-                    v-model="employeeData.name"
-                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all font-bold text-gray-700"
+                    :value="employeeData.name"
+                    disabled
+                    class="w-full pl-10 pr-3.5 py-2.5 bg-gray-100/70 border border-gray-200/50 rounded-xl text-sm font-semibold text-gray-500 cursor-not-allowed select-none"
                   />
                 </div>
               </div>
 
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Job Title</label>
+              <!-- Job Title (Read-Only) -->
+              <div class="space-y-1">
+                <label class="text-xs font-bold text-gray-500 ml-0.5">Job Title</label>
                 <div class="relative">
-                  <i class="mdi mdi-briefcase-outline absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                  <i class="mdi mdi-briefcase-outline absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
                   <input
                     type="text"
-                    v-model="employeeData.role"
-                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all font-bold text-gray-700"
+                    :value="employeeData.role"
+                    disabled
+                    class="w-full pl-10 pr-3.5 py-2.5 bg-gray-100/70 border border-gray-200/50 rounded-xl text-sm font-semibold text-gray-500 cursor-not-allowed select-none"
                   />
                 </div>
               </div>
 
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+              <!-- Email Address (Read-Only) -->
+              <div class="space-y-1">
+                <label class="text-xs font-bold text-gray-500 ml-0.5">Email Address</label>
                 <div class="relative">
-                  <i class="mdi mdi-email-outline absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                  <i class="mdi mdi-email-outline absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
                   <input
                     type="email"
-                    v-model="employeeData.email"
-                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all font-bold text-gray-700"
+                    :value="employeeData.email"
+                    disabled
+                    class="w-full pl-10 pr-3.5 py-2.5 bg-gray-100/70 border border-gray-200/50 rounded-xl text-sm font-semibold text-gray-500 cursor-not-allowed select-none"
                   />
                 </div>
               </div>
 
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Phone Number</label>
+              <!-- Phone Number (EDITABLE) -->
+              <div class="space-y-1">
+                <label class="text-xs font-bold text-gray-800 ml-0.5">Phone Number</label>
                 <div class="relative">
-                  <i class="mdi mdi-phone-outline absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                  <i class="mdi mdi-phone-outline absolute left-3.5 top-1/2 -translate-y-1/2 text-purple-600"></i>
                   <input
                     type="tel"
                     v-model="employeeData.phone"
-                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all font-bold text-gray-700"
+                    placeholder="Enter phone number..."
+                    class="w-full pl-10 pr-3.5 py-2.5 bg-white border border-purple-300 rounded-xl focus:ring-2 focus:ring-purple-600 text-sm font-semibold text-gray-900 outline-none transition-all"
                   />
                 </div>
               </div>
 
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Joining Date</label>
+              <!-- Joining Date (Read-Only) -->
+              <div class="space-y-1">
+                <label class="text-xs font-bold text-gray-500 ml-0.5">Joining Date</label>
                 <div class="relative">
-                  <i class="mdi mdi-calendar-outline absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                  <input
-                    type="date"
-                    v-model="employeeData.joiningDate"
-                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all font-bold text-gray-700"
-                  />
-                </div>
-              </div>
-
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Location</label>
-                <div class="relative">
-                  <i class="mdi mdi-map-marker-outline absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                  <i class="mdi mdi-calendar-outline absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
                   <input
                     type="text"
-                    v-model="employeeData.location"
-                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all font-bold text-gray-700"
+                    :value="employeeData.joiningDate"
+                    disabled
+                    class="w-full pl-10 pr-3.5 py-2.5 bg-gray-100/70 border border-gray-200/50 rounded-xl text-sm font-semibold text-gray-500 cursor-not-allowed select-none"
                   />
                 </div>
               </div>
 
-              <div class="md:col-span-2 space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Professional Bio</label>
+              <!-- Location (Read-Only) -->
+              <div class="space-y-1">
+                <label class="text-xs font-bold text-gray-500 ml-0.5">Location</label>
+                <div class="relative">
+                  <i class="mdi mdi-map-marker-outline absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                  <input
+                    type="text"
+                    :value="employeeData.location"
+                    disabled
+                    class="w-full pl-10 pr-3.5 py-2.5 bg-gray-100/70 border border-gray-200/50 rounded-xl text-sm font-semibold text-gray-500 cursor-not-allowed select-none"
+                  />
+                </div>
+              </div>
+
+              <!-- Professional Bio (EDITABLE) -->
+              <div class="md:col-span-2 space-y-1">
+                <label class="text-xs font-bold text-gray-800 ml-0.5">Professional Bio</label>
                 <textarea
                   v-model="employeeData.bio"
-                  rows="4"
-                  class="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-purple-600 focus:bg-white transition-all font-medium text-gray-700 resize-none"
-                  placeholder="Tell us about your professional journey..."
+                  rows="3"
+                  class="w-full p-3.5 bg-white border border-purple-300 rounded-xl focus:ring-2 focus:ring-purple-600 text-sm font-medium text-gray-900 resize-none outline-none transition-all"
+                  placeholder="Share a brief overview of your professional background..."
                 ></textarea>
               </div>
             </div>
 
             <!-- Action Buttons -->
-            <div class="mt-10 flex flex-col sm:flex-row gap-4 border-t border-gray-50 pt-8">
-              <button
-                @click="updateDetails"
-                class="flex-grow bg-purple-600 text-white py-4 px-8 rounded-2xl font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-500/25 active:scale-95"
-              >
-                Save All Changes
-              </button>
+            <div class="mt-5 flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
               <button
                 @click="toggleEditMode"
-                class="bg-gray-100 text-gray-600 py-4 px-8 rounded-2xl font-bold hover:bg-gray-200 transition-all active:scale-95"
+                class="px-5 py-2.5 bg-gray-100 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-95"
               >
-                Discard Changes
+                Cancel
+              </button>
+              <button
+                @click="updateDetails"
+                :disabled="saving"
+                class="px-6 py-2.5 bg-purple-600 text-white text-xs font-bold rounded-xl hover:bg-purple-700 transition-all shadow-md shadow-purple-500/20 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+              >
+                <i v-if="saving" class="mdi mdi-loading mdi-spin text-sm"></i>
+                <span>{{ saving ? 'Saving...' : 'Save Changes' }}</span>
               </button>
             </div>
           </div>

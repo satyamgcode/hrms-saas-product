@@ -65,17 +65,12 @@ const stats = [
                 
                 <!-- Profile Info Overlay -->
                 <div class="flex flex-col md:flex-row items-end gap-6 -mt-16 px-6 md:px-10">
-                    <div class="relative group">
+                    <div class="relative">
                         <img 
                             :src="employeeData.avatar || `https://ui-avatars.com/api/?name=${employeeData.name}&background=8A3EEA&color=fff`" 
                             alt="Avatar"
-                            class="w-32 h-32 md:w-40 md:h-40 rounded-3xl border-4 border-white shadow-xl object-cover transition-transform group-hover:scale-[1.02]" 
+                            class="w-32 h-32 md:w-40 md:h-40 rounded-3xl border-4 border-white shadow-xl object-cover" 
                         />
-                        <div class="absolute inset-0 bg-black/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button class="bg-white/90 p-2 rounded-xl text-brand-purple shadow-lg">
-                                <i class="mdi mdi-camera text-xl"></i>
-                            </button>
-                        </div>
                     </div>
                     
                     <div class="flex-grow pb-4 text-center md:text-left">
@@ -95,15 +90,6 @@ const stats = [
                                 <span>{{ employeeData.department || 'General' }}</span>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="pb-4 flex gap-2">
-                        <button class="p-3 bg-gray-50 text-gray-400 hover:text-brand-purple hover:bg-brand-purple/10 rounded-2xl transition-all shadow-sm">
-                            <i class="mdi mdi-email-outline text-xl"></i>
-                        </button>
-                        <button class="px-6 py-3 bg-brand-purple text-white rounded-2xl font-bold shadow-lg shadow-brand-purple/25 hover:scale-[1.02] active:scale-95 transition-all">
-                            Edit Profile
-                        </button>
                     </div>
                 </div>
             </div>

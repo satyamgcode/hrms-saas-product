@@ -1,16 +1,55 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getCurrentSession, getUserProfile, getCompany } from '../services/api';
+import { getCurrentSession, getUserProfile, getCompany, updateUserProfile } from '../services/api';
 import defaultLogo from '../assets/home-logo.svg';
 
 const loading = ref(false);
 const saving = ref(false);
+const uploadingAvatar = ref(false);
 const toastMessage = ref('');
 const toastType = ref('success');
 
 // Profile & Company Data
 const userProfile = ref(null);
 const companyData = ref(null);
+
+const handleAvatarUpload = async (event) => {
+  const file = event.target.files?.[0];
+  if (!file || !userProfile.value) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('Image file size must be less than 5MB', 'error');
+    return;
+  }
+
+  uploadingAvatar.value = true;
+  const reader = new FileReader();
+
+  reader.onload = async (e) => {
+    const base64Data = e.target?.result;
+    if (!base64Data) {
+      uploadingAvatar.value = false;
+      return;
+    }
+    try {
+      const updated = await updateUserProfile(userProfile.value.id, { avatar: base64Data });
+      if (updated && updated.avatar) {
+        userProfile.value.avatar = updated.avatar;
+      } else {
+        userProfile.value.avatar = base64Data;
+      }
+      window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: userProfile.value }));
+      showToast('Profile photo updated successfully!', 'success');
+    } catch (err) {
+      console.error('Failed to update avatar:', err);
+      showToast('Failed to update profile photo.', 'error');
+    } finally {
+      uploadingAvatar.value = false;
+    }
+  };
+
+  reader.readAsDataURL(file);
+};
 
 // Interactive User Preferences
 const userPrefs = ref({
@@ -126,13 +165,41 @@ onMounted(fetchData);
       <!-- Left Column: User Profile Badge -->
       <div class="space-y-6">
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-center space-y-4">
-          <div class="relative w-24 h-24 mx-auto">
+          <div class="relative w-24 h-24 mx-auto group">
             <img 
-              :src="`https://ui-avatars.com/api/?name=${userProfile?.full_name || 'User'}&background=8A3EEA&color=fff`" 
+              :src="userProfile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.full_name || 'User')}&background=8A3EEA&color=fff`" 
               alt="Profile avatar" 
-              class="w-24 h-24 rounded-full border-4 border-brand-purple/10 shadow-sm"
+              class="w-24 h-24 rounded-full border-4 border-brand-purple/10 shadow-sm object-cover"
             />
             <div class="absolute bottom-1 right-1 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
+            
+            <input 
+              type="file" 
+              id="settings-avatar-upload" 
+              accept="image/*" 
+              @change="handleAvatarUpload" 
+              class="hidden" 
+            />
+            <label 
+              for="settings-avatar-upload"
+              class="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer"
+              title="Change Profile Photo"
+            >
+              <i v-if="uploadingAvatar" class="mdi mdi-loading mdi-spin text-xl"></i>
+              <i v-else class="mdi mdi-camera text-xl"></i>
+              <span class="text-[9px] font-bold mt-0.5">Upload</span>
+            </label>
+          </div>
+
+          <div>
+            <label 
+              for="settings-avatar-upload" 
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-purple/10 hover:bg-brand-purple hover:text-white text-brand-purple rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              <i v-if="uploadingAvatar" class="mdi mdi-loading mdi-spin text-sm"></i>
+              <i v-else class="mdi mdi-upload text-sm"></i>
+              <span>{{ uploadingAvatar ? 'Uploading...' : 'Change Profile Photo' }}</span>
+            </label>
           </div>
           
           <div>
@@ -183,8 +250,8 @@ onMounted(fetchData);
           </h3>
           
           <div class="flex items-start gap-4">
-            <div class="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-              <img :src="companyData?.logo || defaultLogo" alt="Company logo" class="max-w-[80%] max-h-[80%] object-contain" />
+            <div class="w-16 h-16 rounded-full border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
+              <img :src="companyData?.logo || defaultLogo" alt="Company logo" class="w-full h-full object-cover" />
             </div>
             <div>
               <h4 class="text-lg font-black text-gray-950">{{ companyData?.name || 'Registered Company' }}</h4>

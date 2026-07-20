@@ -34,12 +34,23 @@ onMounted(async () => {
     name: profile?.full_name || authUser.user_metadata?.full_name || authUser.email || 'Admin',
     role: profile?.role || 'Admin',
     email: authUser.email,
+    avatar: profile?.avatar,
   };
 
   await loadCompanyDetails(profile?.companyId || 1);
 
   window.addEventListener('company-updated', async () => {
     await loadCompanyDetails(profile?.companyId || 1);
+  });
+
+  window.addEventListener('user-profile-updated', (e) => {
+    if (e.detail) {
+      loggedInUser.value = {
+        ...loggedInUser.value,
+        name: e.detail.full_name || loggedInUser.value.name,
+        avatar: e.detail.avatar,
+      };
+    }
   });
 });
 
@@ -102,9 +113,8 @@ watch(route, () => {
       <!-- Sidebar Header -->
       <div class="h-20 flex items-center px-6 border-b border-gray-100 flex-shrink-0">
         <div class="flex items-center min-w-0">
-          <div
-            class="flex-shrink-0 w-10 h-10 bg-brand-purple/10 rounded-xl flex items-center justify-center mr-3 shadow-sm">
-            <img :src="orgLogo" alt="Logo" class="h-6 w-6 object-contain" />
+          <div class="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden border border-gray-100 shadow-sm mr-3">
+            <img :src="orgLogo" :alt="orgName" class="w-full h-full object-cover" />
           </div>
           <h1 v-show="!isSidebarCollapsed" class="text-lg font-black tracking-tight text-gray-900 truncate">
             {{ orgName }}
@@ -141,8 +151,9 @@ watch(route, () => {
         <div
           :class="['flex items-center', isSidebarCollapsed ? 'justify-center' : 'p-2 bg-white rounded-2xl shadow-sm border border-gray-100']">
           <div class="relative flex-shrink-0">
-            <img :src="`https://ui-avatars.com/api/?name=${loggedInUser.name}&background=8A3EEA&color=fff`"
-              alt="Profile" class="w-10 h-10 rounded-full border-2 border-brand-purple/10 shadow-sm" />
+            <img
+              :src="loggedInUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(loggedInUser.name)}&background=8A3EEA&color=fff`"
+              alt="Profile" class="w-10 h-10 rounded-full border-2 border-brand-purple/10 shadow-sm object-cover" />
             <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
           </div>
 
@@ -168,7 +179,8 @@ watch(route, () => {
     <!-- Main Content -->
     <main class="flex-grow flex flex-col min-w-0 overflow-hidden relative">
       <!-- Navbar / Header -->
-      <header class="h-20 flex items-center justify-between px-8 bg-white/95 backdrop-blur-md border-b border-purple-100 z-40 flex-shrink-0">
+      <header
+        class="h-20 flex items-center justify-between px-8 bg-white/95 backdrop-blur-md border-b border-purple-100 z-40 flex-shrink-0">
         <div class="flex items-center gap-4">
           <!-- Mobile Menu Toggle -->
           <button @click="isMobileMenuOpen = true"
@@ -186,13 +198,15 @@ watch(route, () => {
 
           <!-- Title -->
           <h2 class="text-lg font-black text-gray-950 tracking-tight hidden sm:block">
-            {{ activeTab === '/admin/settings' ? 'Company & HRMS Settings' : (sideBarList.find(l => l.route === activeTab)?.text || 'Admin Panel') }}
+            {{activeTab === '/admin/settings' ? 'Company & HRMS Settings' : (sideBarList.find(l => l.route ===
+              activeTab)?.text || 'Admin Panel') }}
           </h2>
         </div>
 
         <div class="flex items-center gap-3">
           <!-- Simple "Admin" Status Indicator -->
-          <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest bg-purple-50 text-purple-650 border border-purple-100 shadow-sm">
+          <span
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest bg-purple-50 text-purple-650 border border-purple-100 shadow-sm">
             <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
             Admin
           </span>
@@ -208,11 +222,9 @@ watch(route, () => {
           </button>
 
           <!-- Back to Employee Profile / View Button -->
-          <button 
-            @click="router.push('/overview')" 
-            class="flex items-center gap-2 px-5 py-2.5 border border-brand-orange/30 bg-brand-orange/10 hover:bg-brand-orange text-brand-orange hover:text-white rounded-xl font-bold text-xs transition-all duration-200 active:scale-95 shadow-md shadow-brand-orange/5"
-            title="Switch to Employee Workspace"
-          >
+          <button @click="router.push('/overview')"
+            class="flex items-center gap-2 px-5 py-1.5 border border-brand-orange/30 bg-brand-orange/10 hover:bg-brand-orange text-brand-orange hover:text-white rounded-xl font-bold text-xs transition-all duration-200 active:scale-95 shadow-md shadow-brand-orange/5"
+            title="Switch to Employee Workspace">
             <i class="mdi mdi-account-circle text-base"></i>
             <span>Employee View</span>
           </button>

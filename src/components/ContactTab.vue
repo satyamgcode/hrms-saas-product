@@ -4,6 +4,7 @@ import { getCurrentUser, getUserProfile, updateUserProfile } from '../services/a
 import EmployeePage from './EmployeePage.vue';
 
 const contactData = ref({
+  id: null,
   email: 'Loading...',
   phone: '',
   currentAddress: '',
@@ -17,6 +18,7 @@ const contactData = ref({
 });
 
 const isEditing = ref(false);
+const saving = ref(false);
 
 onMounted(async () => {
   try {
@@ -26,9 +28,9 @@ onMounted(async () => {
       if (data) {
         contactData.value = {
           ...data,
-          currentAddress: data.current_address || 'N/A',
-          permanentAddress: data.permanent_address || 'N/A',
-          officeAddress: data.office_address || 'HQ Tech Park, Suite 101',
+          currentAddress: data.current_address || '',
+          permanentAddress: data.permanent_address || '',
+          officeAddress: data.office_address || 'HQ Corporate Offices',
           socialLinks: data.social_links || { linkedin: '#', twitter: '#', facebook: '#' }
         };
       }
@@ -43,111 +45,186 @@ const toggleEdit = () => {
 };
 
 const saveChanges = async () => {
+  if (!contactData.value.id) return;
+  saving.value = true;
   try {
-    // Map back to database snake_case fields
-    contactData.value.current_address = contactData.value.currentAddress;
-    contactData.value.permanent_address = contactData.value.permanentAddress;
-    contactData.value.office_address = contactData.value.officeAddress;
-    contactData.value.social_links = contactData.value.socialLinks;
-
-    const updated = await updateUserProfile(contactData.value.id, contactData.value);
+    const updated = await updateUserProfile(contactData.value.id, {
+      current_address: contactData.value.currentAddress,
+      permanent_address: contactData.value.permanentAddress
+    });
     if (updated) {
-      contactData.value = { 
-        ...contactData.value, 
-        ...updated,
-        currentAddress: updated.current_address || contactData.value.currentAddress,
-        permanentAddress: updated.permanent_address || contactData.value.permanentAddress,
-        officeAddress: updated.office_address || contactData.value.officeAddress,
-        socialLinks: updated.social_links || contactData.value.socialLinks
-      };
+      contactData.value.currentAddress = updated.current_address || contactData.value.currentAddress;
+      contactData.value.permanentAddress = updated.permanent_address || contactData.value.permanentAddress;
+      isEditing.value = false;
+    } else {
       isEditing.value = false;
     }
   } catch (error) {
     console.error('Error saving contact changes:', error);
+  } finally {
+    saving.value = false;
   }
 };
 </script>
 
 <template>
   <EmployeePage>
-    <div class="max-w-full mx-auto mt-1 bg-white py-8 px-4 rounded-lg shadow-md ">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-semibold">Contact Details</h2>
-        <button @click="toggleEdit" class="text-gray-500 hover:text-gray-700">
-          <i :class="isEditing ? 'mdi mdi-cancel text-green-500' : 'mdi mdi-pencil text-gray-500'" class="text-2xl"></i>
+    <div class="mt-4 sm:mt-6 animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-6">
+      
+      <!-- Premium Header Card -->
+      <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div class="flex items-center gap-5">
+          <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-brand-purple to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-200">
+            <i class="mdi mdi-card-account-phone-outline text-3xl sm:text-4xl"></i>
+          </div>
+          <div>
+            <h2 class="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+              Contact & Address Details
+            </h2>
+            <p class="text-gray-500 font-medium mt-1">
+              Manage your residential address records and view official contact information
+            </p>
+          </div>
+        </div>
+
+        <button
+          @click="toggleEdit"
+          :class="[
+            'flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex-shrink-0 active:scale-95 shadow-sm',
+            isEditing 
+              ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+              : 'bg-brand-purple text-white hover:bg-purple-700 shadow-purple-500/20'
+          ]"
+        >
+          <i :class="['mdi text-base', isEditing ? 'mdi-close' : 'mdi-pencil-outline']"></i>
+          <span>{{ isEditing ? 'Cancel Edit' : 'Edit Addresses' }}</span>
         </button>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div>
-          <label class="block text-gray-600 mb-1">Email</label>
-          <input
-            v-if="isEditing"
-            v-model="contactData.email"
-            type="email"
-            class="w-full border-gray-300 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <p v-else><a :href="`mailto:${contactData.email}`" class="text-purple-600">{{ contactData.email }}</a></p>
+      <!-- Main Section Cards -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Official Contact Info (Read-Only) -->
+        <div class="space-y-6">
+          <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 space-y-6">
+            <div class="border-b border-gray-50 pb-4">
+              <h3 class="text-lg font-black text-gray-900 flex items-center gap-2">
+                <i class="mdi mdi-account-box-outline text-brand-purple"></i> Official Contacts
+              </h3>
+            </div>
+
+            <!-- Email -->
+            <div class="space-y-1">
+              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Work Email</label>
+              <a :href="`mailto:${contactData.email}`" class="text-sm font-bold text-gray-900 hover:text-brand-purple transition-colors truncate block">
+                {{ contactData.email || 'Not available' }}
+              </a>
+            </div>
+
+            <!-- Phone -->
+            <div class="space-y-1">
+              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Phone Number</label>
+              <a v-if="contactData.phone" :href="`tel:${contactData.phone}`" class="text-sm font-bold text-gray-900 hover:text-brand-purple transition-colors block">
+                {{ contactData.phone }}
+              </a>
+              <p v-else class="text-sm font-bold text-gray-400">Not provided</p>
+            </div>
+
+            <!-- Office Address -->
+            <div class="space-y-1 pt-2 border-t border-gray-50">
+              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Office Location</label>
+              <p class="text-sm font-bold text-gray-800 leading-snug">
+                {{ contactData.officeAddress || 'HQ Corporate Offices' }}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-gray-600 mb-1">Phone</label>
-          <input
-            v-if="isEditing"
-            v-model="contactData.phone"
-            type="tel"
-            class="w-full border-gray-300 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-            required
-          />
-          <p v-else><a :href="`tel:${contactData.phone}`" class="text-purple-600">{{ contactData.phone }}</a></p>
-        </div>
+        <!-- Right Column: Addresses Form & View -->
+        <div class="lg:col-span-2">
+          
+          <!-- View Mode -->
+          <div v-if="!isEditing" class="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 space-y-6">
+            <h3 class="text-lg font-black text-gray-900 border-b border-gray-50 pb-4 flex items-center gap-2">
+              <i class="mdi mdi-map-marker-radius-outline text-brand-purple"></i> Residential Address Records
+            </h3>
 
-        <div class="col-span-2">
-          <label class="block text-gray-600 mb-1">Current Address</label>
-          <input
-            v-if="isEditing"
-            v-model="contactData.currentAddress"
-            type="text"
-            class="w-full border-gray-300 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <p v-else>{{ contactData.currentAddress }}</p>
-        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Current Address -->
+              <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-2">
+                <div class="flex items-center gap-2 text-brand-purple">
+                  <i class="mdi mdi-home-outline text-xl"></i>
+                  <h4 class="text-xs font-black uppercase tracking-widest">Current Address</h4>
+                </div>
+                <p class="text-sm font-medium text-gray-700 leading-relaxed pt-1">
+                  {{ contactData.currentAddress || 'No current address provided.' }}
+                </p>
+              </div>
 
-        <div class="col-span-2">
-          <label class="block text-gray-600 mb-1">Permanent Address</label>
-          <input
-            v-if="isEditing"
-            v-model="contactData.permanentAddress"
-            type="text"
-            class="w-full border-gray-300 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <p v-else>{{ contactData.permanentAddress }}</p>
-        </div>
+              <!-- Permanent Address -->
+              <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-2">
+                <div class="flex items-center gap-2 text-brand-purple">
+                  <i class="mdi mdi-home-city-outline text-xl"></i>
+                  <h4 class="text-xs font-black uppercase tracking-widest">Permanent Address</h4>
+                </div>
+                <p class="text-sm font-medium text-gray-700 leading-relaxed pt-1">
+                  {{ contactData.permanentAddress || 'No permanent address provided.' }}
+                </p>
+              </div>
+            </div>
+          </div>
 
-        <div class="col-span-2">
-          <label class="block text-gray-600 mb-1">Office Address</label>
-          <input
-            v-if="isEditing"
-            v-model="contactData.officeAddress"
-            type="text"
-            class="w-full border-gray-300 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <p v-else>{{ contactData.officeAddress }}</p>
-        </div>
-      </div>
+          <!-- Edit Mode Form (Compact, No Tag Badges) -->
+          <div v-else class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+            <div class="border-b border-gray-100 pb-3">
+              <h3 class="text-lg font-black text-gray-900">
+                Update Residential Addresses
+              </h3>
+            </div>
 
-      <div class="mt-6">
-        <h3 class="text-lg font-semibold mb-2">Social Links</h3>
-        <div class="flex flex-wrap gap-4">
-          <a :href="contactData.socialLinks.linkedin" target="_blank" class="flex items-center gap-2 text-blue-700">
-            <i class="mdi mdi-linkedin text-2xl"></i> LinkedIn
-          </a>
-          <a :href="contactData.socialLinks.twitter" target="_blank" class="flex items-center gap-2 text-blue-400">
-            <i class="mdi mdi-twitter text-2xl"></i> Twitter
-          </a>
-          <a :href="contactData.socialLinks.facebook" target="_blank" class="flex items-center gap-2 text-blue-600">
-            <i class="mdi mdi-facebook text-2xl"></i> Facebook
-          </a>
+            <div class="space-y-4">
+              <!-- Current Address Input -->
+              <div class="space-y-1">
+                <label class="text-xs font-bold text-gray-700 ml-0.5">Current Address</label>
+                <textarea
+                  v-model="contactData.currentAddress"
+                  rows="2"
+                  class="w-full p-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-purple focus:bg-white text-sm font-medium text-gray-900 resize-none outline-none transition-all"
+                  placeholder="Enter your current address..."
+                ></textarea>
+              </div>
+
+              <!-- Permanent Address Input -->
+              <div class="space-y-1">
+                <label class="text-xs font-bold text-gray-700 ml-0.5">Permanent Address</label>
+                <textarea
+                  v-model="contactData.permanentAddress"
+                  rows="2"
+                  class="w-full p-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-purple focus:bg-white text-sm font-medium text-gray-900 resize-none outline-none transition-all"
+                  placeholder="Enter your permanent address..."
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-5 flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+              <button
+                @click="toggleEdit"
+                class="px-5 py-2.5 bg-gray-100 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                @click="saveChanges"
+                :disabled="saving"
+                class="px-6 py-2.5 bg-brand-purple text-white text-xs font-bold rounded-xl hover:bg-purple-700 transition-all shadow-md shadow-purple-500/20 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+              >
+                <i v-if="saving" class="mdi mdi-loading mdi-spin text-sm"></i>
+                <span>{{ saving ? 'Saving...' : 'Save Changes' }}</span>
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

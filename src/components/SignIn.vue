@@ -26,8 +26,8 @@
 
         <div class="relative z-10">
           <div v-if="company" class="flex flex-col gap-6">
-            <div class="bg-white/20 backdrop-blur-md p-4 rounded-xl inline-block w-fit">
-              <img :src="company.logo" :alt="company.name" class="h-12 w-auto" />
+            <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-white/30 shadow-lg inline-block flex-shrink-0">
+              <img :src="company.logo" :alt="company.name" class="w-full h-full object-cover" />
             </div>
             <div>
               <h1 class="text-4xl font-bold mb-4">{{ company.name }}</h1>
