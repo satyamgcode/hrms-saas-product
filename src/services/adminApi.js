@@ -176,5 +176,179 @@ export const adminApi = {
       .maybeSingle();
     throwIfError(error);
     return data;
+  },
+
+  async getAllUserDocuments(companyId) {
+    if (!companyId) return [];
+
+    // 1. Get all employees belonging to this company
+    const employees = await adminApi.getAllEmployees(companyId);
+    const companyUserIds = new Set(employees.map(e => e.id));
+
+    if (companyUserIds.size === 0) {
+      return [];
+    }
+
+    const userIdArray = Array.from(companyUserIds);
+    let docs = [];
+
+    // 2. Query Supabase for documents belonging ONLY to users of this company
+    try {
+      const { data, error } = await supabase
+        .from('user_documents')
+        .select('*')
+        .in('userId', userIdArray);
+
+      if (!error && data) {
+        docs = data;
+      }
+    } catch (e) {
+      console.warn('Error fetching user documents from Supabase:', e);
+    }
+
+    // 3. Scan localStorage ONLY for user IDs belonging to this company
+    try {
+      userIdArray.forEach(userId => {
+        const localKey = `hrms_user_docs_${userId}`;
+        const localStored = localStorage.getItem(localKey);
+        if (localStored) {
+          const userDocs = JSON.parse(localStored);
+          userDocs.forEach(d => {
+            if (!docs.some(existing => existing.id === d.id)) {
+              docs.push(d);
+            }
+          });
+        }
+      });
+    } catch (e) {
+      console.error('Error scanning local user docs:', e);
+    }
+
+    return docs;
+  },
+
+  async updateDocumentStatus(documentId, status, rejectionReason = '', userId = null) {
+    const payload = {
+      status,
+      rejectionReason: status === 'Rejected' ? rejectionReason : '',
+      lastModified: new Date().toLocaleDateString()
+    };
+
+    try {
+      const { data, error } = await supabase
+        .from('user_documents')
+        .update(payload)
+        .eq('id', documentId)
+        .select()
+        .maybeSingle();
+
+      if (!error && data) {
+        return data;
+      }
+    } catch (e) {
+      console.warn('Error updating document status in Supabase:', e);
+    }
+
+    // Update in localStorage if saved locally
+    if (userId) {
+      const localKey = `hrms_user_docs_${userId}`;
+      const userDocs = JSON.parse(localStorage.getItem(localKey) || '[]');
+      const idx = userDocs.findIndex(d => d.id === documentId);
+      if (idx !== -1) {
+        userDocs[idx] = { ...userDocs[idx], ...payload };
+        localStorage.setItem(localKey, JSON.stringify(userDocs));
+        return userDocs[idx];
+      }
+    }
+
+    return { id: documentId, ...payload };
+  },
+
+  async approveDocumentRequest(documentId, actionType, userId) {
+    if (actionType === 'delete') {
+      try {
+        await supabase.from('user_documents').delete().eq('id', documentId);
+      } catch (e) {}
+
+      if (userId) {
+        const localKey = `hrms_user_docs_${userId}`;
+        const userDocs = JSON.parse(localStorage.getItem(localKey) || '[]');
+        const filtered = userDocs.filter(d => d.id !== documentId);
+        localStorage.setItem(localKey, JSON.stringify(filtered));
+      }
+      return { id: documentId, deleted: true };
+    } else {
+      // Allow update
+      return await adminApi.updateDocumentStatus(documentId, 'Pending', '', userId);
+    }
+  },
+
+  async rejectDocumentRequest(documentId, userId) {
+    const payload = {
+      requestStatus: null,
+      requestReason: '',
+      lastModified: new Date().toLocaleDateString()
+    };
+
+    try {
+      const { data, error } = await supabase
+        .from('user_documents')
+        .update(payload)
+        .eq('id', documentId)
+        .select()
+        .maybeSingle();
+
+      if (!error && data) {
+        return data;
+      }
+    } catch (e) {}
+
+    if (userId) {
+      const localKey = `hrms_user_docs_${userId}`;
+      const userDocs = JSON.parse(localStorage.getItem(localKey) || '[]');
+      const idx = userDocs.findIndex(d => d.id === documentId);
+      if (idx !== -1) {
+        userDocs[idx] = { ...userDocs[idx], ...payload };
+        localStorage.setItem(localKey, JSON.stringify(userDocs));
+        return userDocs[idx];
+      }
+    }
+    return { id: documentId, ...payload };
+  },
+
+  async uploadEmployeeDocument(userId, documentData, companyId = 1) {
+    const payload = {
+      id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      userId,
+      companyId,
+      type: documentData.type,
+      name: documentData.name,
+      url: documentData.url,
+      status: 'Approved', // Admin uploaded files are auto-approved
+      rejectionReason: '',
+      uploadedBy: 'Admin',
+      lastModified: new Date().toLocaleDateString(),
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      const { data, error } = await supabase
+        .from('user_documents')
+        .insert(payload)
+        .select()
+        .maybeSingle();
+
+      if (!error && data) {
+        return data;
+      }
+    } catch (e) {
+      console.warn('Error uploading employee document in Supabase:', e);
+    }
+
+    const localKey = `hrms_user_docs_${userId}`;
+    const existing = JSON.parse(localStorage.getItem(localKey) || '[]');
+    existing.unshift(payload);
+    localStorage.setItem(localKey, JSON.stringify(existing));
+    return payload;
   }
 };

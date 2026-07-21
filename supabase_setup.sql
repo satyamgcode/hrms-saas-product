@@ -102,7 +102,21 @@ CREATE TABLE IF NOT EXISTS public.user_documents (
   type TEXT,
   name TEXT,
   url TEXT,
+  status TEXT DEFAULT 'Pending',
+  "rejectionReason" TEXT DEFAULT '',
+  "uploadedBy" TEXT DEFAULT 'Employee',
   "lastModified" TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 9. Create Required Document Templates Table
+CREATE TABLE IF NOT EXISTS public.required_document_templates (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  title TEXT NOT NULL,
+  category TEXT DEFAULT 'General',
+  description TEXT,
+  "isRequired" BOOLEAN DEFAULT true,
+  "companyId" INTEGER DEFAULT 1 REFERENCES public.companies(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -264,16 +278,22 @@ WITH CHECK (
   LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
 );
 
-DROP POLICY IF EXISTS "Allow users and admins to delete documents" ON public.user_documents;
-CREATE POLICY "Allow users and admins to delete documents"
-ON public.user_documents
-FOR DELETE
+-- 6. Policies for public.required_document_templates
+ALTER TABLE public.required_document_templates ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow authenticated users to view required_document_templates" ON public.required_document_templates;
+CREATE POLICY "Allow authenticated users to view required_document_templates"
+ON public.required_document_templates
+FOR SELECT
 TO authenticated
-USING (
-  auth.uid() = "userId" OR
-  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
-  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
-);
+USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users to manage required_document_templates" ON public.required_document_templates;
+CREATE POLICY "Allow authenticated users to manage required_document_templates"
+ON public.required_document_templates
+FOR ALL
+TO authenticated
+USING (true);
 
 -- ==========================================
 -- PROFILES TABLE & POLICIES (Admin & Company Onboarding)
