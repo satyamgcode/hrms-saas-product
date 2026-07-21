@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { getCurrentUser, getUserProfile, getLeaves, createLeave, deleteLeave } from '../services/api';
+import { getCurrentUser, getUserProfile, getLeaves, createLeave, deleteLeave, createNotification } from '../services/api';
 import EmployeePage from './EmployeePage.vue';
 import { addToast } from '../services/toastService';
 
@@ -149,6 +149,21 @@ const submitLeaveRequest = async () => {
 
     const saved = await createLeave(newLeave);
     leaves.value.unshift(saved);
+    
+    // Trigger admin notification for leave request
+    try {
+      const employeeName = currentUserProfile.value?.full_name || currentUserProfile.value?.name || 'An employee';
+      await createNotification({
+        userId: 'admin',
+        companyId: currentCompanyId.value || 1,
+        title: 'New Leave Request',
+        message: `${employeeName} has requested ${saved.type} leave from ${saved.start_date} to ${saved.end_date}.`,
+        type: 'info'
+      });
+    } catch (e) {
+      console.warn('Failed to send leave request notification:', e);
+    }
+
     showRequestModal.value = false;
     // reset form
     leaveForm.value = { type: 'Casual', startDate: '', endDate: '', reason: '' };

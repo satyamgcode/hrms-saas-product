@@ -9,6 +9,7 @@ import {
   updateRequiredDocument, 
   deleteRequiredDocument,
   deleteDocument,
+  createNotification,
   uploadFile
 } from '../../services/api';
 import { addToast } from '../../services/toastService';
@@ -139,6 +140,20 @@ const approveDoc = async (doc) => {
     if (idx !== -1) {
       allDocuments.value[idx] = { ...allDocuments.value[idx], ...updated, status: 'Approved', rejectionReason: '' };
     }
+    
+    // Notify employee of approval
+    try {
+      await createNotification({
+        userId: doc.userId,
+        companyId: companyId.value,
+        title: 'Document Approved',
+        message: `Your document ${doc.type} has been approved by HR.`,
+        type: 'success'
+      });
+    } catch (err) {
+      console.warn('Failed to send approval notification:', err);
+    }
+
     addToast(`Document "${doc.type}" approved successfully.`, 'success');
   } catch (e) {
     console.error('Error approving document:', e);
@@ -177,6 +192,20 @@ const confirmRejectDoc = async () => {
         rejectionReason: rejectionReasonInput.value.trim() 
       };
     }
+
+    // Notify employee of rejection
+    try {
+      await createNotification({
+        userId: documentToReject.value.userId,
+        companyId: companyId.value,
+        title: 'Document Needs Revision',
+        message: `Your document ${documentToReject.value.type} was rejected by HR. Reason: ${rejectionReasonInput.value.trim()}. Please re-upload.`,
+        type: 'warning'
+      });
+    } catch (err) {
+      console.warn('Failed to send rejection notification:', err);
+    }
+
     showRejectModal.value = false;
     addToast('Document rejected and employee notified with feedback.', 'info');
   } catch (e) {
@@ -285,8 +314,21 @@ const saveTemplate = async () => {
       await updateRequiredDocument(editingTemplate.value.id, templateForm.value, companyId.value);
       addToast('Required document configuration updated.', 'success');
     } else {
-      await createRequiredDocument(templateForm.value, companyId.value);
+      const newRule = await createRequiredDocument(templateForm.value, companyId.value);
       addToast('New required document requirement added.', 'success');
+
+      // Notify all company employees of new document rule
+      try {
+        await createNotification({
+          userId: 'all',
+          companyId: companyId.value,
+          title: 'New Document Required',
+          message: `HR has added a new required document: "${newRule.title}". Please upload your copy.`,
+          type: 'info'
+        });
+      } catch (err) {
+        console.warn('Failed to send rule creation notification:', err);
+      }
     }
     // Refresh full list so common seeded items and new items are displayed together
     requiredTemplates.value = await getRequiredDocuments(companyId.value);

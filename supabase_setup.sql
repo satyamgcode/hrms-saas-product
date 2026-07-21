@@ -789,5 +789,39 @@ WITH CHECK (
 -- Force reload schema cache for new tables
 NOTIFY pgrst, 'reload schema';
 
+-- 18. Create Notifications Table
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  "userId" TEXT, -- Can be UUID text, or special targets like 'admin' / 'hr'
+  "companyId" INTEGER DEFAULT 1 REFERENCES public.companies(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'info', -- 'info', 'warning', 'success', 'error'
+  read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow authenticated users to read notifications" ON public.notifications;
+CREATE POLICY "Allow authenticated users to read notifications"
+ON public.notifications FOR SELECT
+TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users to insert notifications" ON public.notifications;
+CREATE POLICY "Allow authenticated users to insert notifications"
+ON public.notifications FOR INSERT
+TO authenticated WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users to update notifications" ON public.notifications;
+CREATE POLICY "Allow authenticated users to update notifications"
+ON public.notifications FOR UPDATE
+TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users to delete notifications" ON public.notifications;
+CREATE POLICY "Allow authenticated users to delete notifications"
+ON public.notifications FOR DELETE
+TO authenticated USING (true);
+
 
 

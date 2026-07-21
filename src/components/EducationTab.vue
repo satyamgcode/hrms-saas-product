@@ -8,6 +8,7 @@ import {
   createDocument, 
   updateDocument as updateDocumentApi, 
   deleteDocument as deleteDocumentApi, 
+  createNotification,
   uploadFile 
 } from '../services/api';
 import EmployeePage from './EmployeePage.vue';
@@ -179,6 +180,22 @@ const saveDocument = async () => {
 
     const savedDoc = await createDocument(newDoc);
     uploadedDocuments.value.unshift(savedDoc);
+    
+    // Create admin notification
+    try {
+      const userProfile = await getUserProfile({ email: user?.email });
+      const employeeName = userProfile?.full_name || userProfile?.name || user?.email || 'An employee';
+      await createNotification({
+        userId: 'admin',
+        companyId: userProfile?.companyId || 1,
+        title: 'New Document Uploaded',
+        message: `${employeeName} has uploaded the document ${savedDoc.type}, please take action on it.`,
+        type: 'info'
+      });
+    } catch (err) {
+      console.warn('Failed to send upload notification:', err);
+    }
+
     selectedDocumentType.value = '';
     selectedFile.value = null;
     isCertified.value = false;
@@ -272,6 +289,22 @@ const handleUpdateFile = async (event) => {
       if (index !== -1) {
         uploadedDocuments.value[index] = savedDoc;
       }
+
+      // Create admin notification for the update
+      try {
+        const userProfile = await getUserProfile({ email: user?.email });
+        const employeeName = userProfile?.full_name || userProfile?.name || user?.email || 'An employee';
+        await createNotification({
+          userId: 'admin',
+          companyId: userProfile?.companyId || 1,
+          title: 'Document Updated',
+          message: `${employeeName} has updated the document ${savedDoc.type}, please take action on it.`,
+          type: 'info'
+        });
+      } catch (err) {
+        console.warn('Failed to send update notification:', err);
+      }
+
       documentToUpdate.value = null;
       addToast(`Document updated to "${file.name}" and resubmitted for review!`, 'success');
     } catch (error) {

@@ -590,3 +590,113 @@ export const deleteLeave = async (leaveId) => {
   throwIfError(error);
 };
 
+export const createNotification = async (notification) => {
+  const payload = {
+    id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    userId: notification.userId,
+    companyId: notification.companyId || 1,
+    title: notification.title,
+    message: notification.message,
+    type: notification.type || 'info',
+    read: false,
+    created_at: new Date().toISOString()
+  };
+
+  try {
+    const { data, error } = await supabase.from('notifications').insert(payload).select().maybeSingle();
+    if (!error && data) {
+      return data;
+    }
+  } catch (err) {
+    console.warn('Supabase create notification failed, falling back to localStorage:', err);
+  }
+
+  // Fallback
+  const key = `hrms_notifications_${payload.companyId}`;
+  const existing = JSON.parse(localStorage.getItem(key) || '[]');
+  existing.unshift(payload);
+  localStorage.setItem(key, JSON.stringify(existing));
+  return payload;
+};
+
+export const getNotifications = async (userId, companyId = 1, isAdmin = false) => {
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('companyId', companyId);
+
+    if (!error && data) {
+      return data.filter(n => {
+        if (n.userId === userId) return true;
+        if (n.userId === 'all') return true;
+        if (n.userId === 'admin' && isAdmin) return true;
+        return false;
+      }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+  } catch (err) {
+    console.warn('Supabase fetch notifications failed, using fallback:', err);
+  }
+
+  // Fallback
+  const key = `hrms_notifications_${companyId}`;
+  const local = JSON.parse(localStorage.getItem(key) || '[]');
+  return local.filter(n => {
+    if (n.userId === userId) return true;
+    if (n.userId === 'all') return true;
+    if (n.userId === 'admin' && isAdmin) return true;
+    return false;
+  }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+};
+
+export const markNotificationAsRead = async (id, companyId = 1) => {
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+
+    if (!error && data) {
+      return data;
+    }
+  } catch (err) {
+    console.warn('Supabase update notification failed, using fallback:', err);
+  }
+
+  // Fallback
+  const key = `hrms_notifications_${companyId}`;
+  const local = JSON.parse(localStorage.getItem(key) || '[]');
+  const idx = local.findIndex(n => n.id === id);
+  if (idx !== -1) {
+    local[idx].read = true;
+    localStorage.setItem(key, JSON.stringify(local));
+    return local[idx];
+  }
+  return null;
+};
+
+export const markAllNotificationsAsRead = async (userId, companyId = 1) => {
+  try {
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('companyId', companyId)
+      .or(`userId.eq.${userId},userId.eq.admin,userId.eq.all`);
+  } catch (err) {
+    console.warn('Supabase mark all read failed, using fallback:', err);
+  }
+
+  // Fallback
+  const key = `hrms_notifications_${companyId}`;
+  const local = JSON.parse(localStorage.getItem(key) || '[]');
+  local.forEach(n => {
+    if (n.userId === userId || n.userId === 'admin' || n.userId === 'all') {
+      n.read = true;
+    }
+  });
+  localStorage.setItem(key, JSON.stringify(local));
+  return true;
+};
+

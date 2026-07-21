@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { getLeaves, updateLeaveStatus, getCurrentSession, getUserProfile } from '../../services/api';
+import { getLeaves, updateLeaveStatus, getCurrentSession, getUserProfile, createNotification } from '../../services/api';
 import { addToast } from '../../services/toastService';
 
 const leaves = ref([]);
@@ -94,6 +94,8 @@ const submitAction = async () => {
 
   actionModal.value.submitting = true;
   try {
+    const leaveRecord = leaves.value.find(l => l.id === actionModal.value.leaveId);
+
     const updated = await updateLeaveStatus(actionModal.value.leaveId, {
       status: actionModal.value.status,
       comments: actionModal.value.comments
@@ -108,6 +110,26 @@ const submitAction = async () => {
         comments: updated.comments,
         updated_at: updated.updated_at
       };
+    }
+
+    // Trigger notification to employee
+    if (leaveRecord) {
+      try {
+        const title = actionModal.value.status === 'Approved' ? 'Leave Request Approved' : 'Leave Request Rejected';
+        const message = actionModal.value.status === 'Approved'
+          ? `Your leave request for ${leaveRecord.type} from ${leaveRecord.start_date} to ${leaveRecord.end_date} has been approved by HR.`
+          : `Your leave request for ${leaveRecord.type} was rejected. Reason: "${actionModal.value.comments.trim()}"`;
+
+        await createNotification({
+          userId: leaveRecord.userId,
+          companyId: leaveRecord.companyId || adminCompanyId.value || 1,
+          title,
+          message,
+          type: actionModal.value.status === 'Approved' ? 'success' : 'warning'
+        });
+      } catch (err) {
+        console.warn('Failed to send leave status notification:', err);
+      }
     }
     
     actionModal.value.show = false;
