@@ -6,7 +6,8 @@ import {
   getUserProfile, 
   getNotifications, 
   markNotificationAsRead, 
-  markAllNotificationsAsRead 
+  markAllNotificationsAsRead,
+  deleteNotification
 } from '../../services/api';
 import searchIcon from '../../assets/icons/search.svg';
 
@@ -59,6 +60,15 @@ const handleMarkAsRead = async (notification) => {
     notification.read = true;
   } catch (e) {
     console.error('Error marking notification as read:', e);
+  }
+};
+
+const handleDelete = async (id) => {
+  try {
+    await deleteNotification(id, currentCompanyId.value);
+    notifications.value = notifications.value.filter(n => n.id !== id);
+  } catch (e) {
+    console.error('Error deleting notification:', e);
   }
 };
 
@@ -134,7 +144,7 @@ onUnmounted(() => {
 
         <!-- Dropdown Card -->
         <div v-if="showNotificationsDropdown" 
-             class="absolute right-0 mt-2.5 w-80 sm:w-96 bg-white border border-gray-150 rounded-3xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-3 duration-250">
+             class="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-[76px] sm:top-auto mt-2.5 sm:w-96 max-w-md sm:max-w-none mx-auto sm:mx-0 bg-white border border-gray-150 rounded-3xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-3 duration-250">
           <!-- Popover Header -->
           <div class="px-5 py-4 bg-gray-50/70 border-b border-gray-100 flex items-center justify-between">
             <h4 class="font-black text-gray-900 text-xs tracking-tight flex items-center gap-1.5">
@@ -176,9 +186,14 @@ onUnmounted(() => {
                 </p>
               </div>
 
-              <!-- Unread status dot -->
-              <div v-if="!notif.read" class="flex-shrink-0 self-center">
-                <span class="w-2 h-2 bg-brand-purple rounded-full block"></span>
+              <!-- Unread status dot & Delete button -->
+              <div class="flex-shrink-0 self-center flex items-center gap-2">
+                <span v-if="!notif.read" class="w-2 h-2 bg-brand-purple rounded-full block"></span>
+                <button @click.stop="handleDelete(notif.id)" 
+                        class="p-1 text-gray-450 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        title="Delete notification">
+                  <i class="mdi mdi-close text-sm"></i>
+                </button>
               </div>
             </div>
 
@@ -203,11 +218,11 @@ onUnmounted(() => {
       <button 
         v-if="isAdmin" 
         @click="navigateToAdmin" 
-        class="flex items-center gap-2 px-5 py-2.5 bg-brand-purple text-white hover:bg-brand-purple/95 font-bold text-xs rounded-xl transition-all duration-200 active:scale-95 shadow-md shadow-brand-purple/20 border border-brand-purple/10"
+        class="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 bg-brand-purple text-white hover:bg-brand-purple/95 font-bold text-xs rounded-xl transition-all duration-200 active:scale-95 shadow-md shadow-brand-purple/20 border border-brand-purple/10"
         title="Access Administrative Console"
       >
         <i class="mdi mdi-shield-crown text-sm"></i>
-        <span>Admin Panel</span>
+        <span class="hidden sm:inline">Admin Panel</span>
       </button>
     </div>
   </div>

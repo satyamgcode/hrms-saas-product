@@ -8,7 +8,8 @@ import {
   getCompany,
   getNotifications,
   markNotificationAsRead,
-  markAllNotificationsAsRead
+  markAllNotificationsAsRead,
+  deleteNotification
 } from '../../services/api';
 import { supabase } from '../../utils/supabase';
 
@@ -66,6 +67,15 @@ const handleMarkAsRead = async (notification) => {
     notification.read = true;
   } catch (e) {
     console.error('Error marking notification as read:', e);
+  }
+};
+
+const handleDelete = async (id) => {
+  try {
+    await deleteNotification(id, currentCompanyId.value);
+    notifications.value = notifications.value.filter(n => n.id !== id);
+  } catch (e) {
+    console.error('Error deleting notification in Admin:', e);
   }
 };
 
@@ -258,7 +268,7 @@ watch(route, () => {
     <main class="flex-grow flex flex-col min-w-0 overflow-hidden relative">
       <!-- Navbar / Header -->
       <header
-        class="h-20 flex items-center justify-between px-8 bg-white/95 backdrop-blur-md border-b border-purple-100 z-40 flex-shrink-0">
+        class="h-20 flex items-center justify-between px-4 sm:px-8 bg-white/95 backdrop-blur-md border-b border-purple-100 z-40 flex-shrink-0">
         <div class="flex items-center gap-4">
           <!-- Mobile Menu Toggle -->
           <button @click="isMobileMenuOpen = true"
@@ -284,7 +294,7 @@ watch(route, () => {
         <div class="flex items-center gap-3">
           <!-- Simple "Admin" Status Indicator -->
           <span
-            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest bg-purple-50 text-purple-650 border border-purple-100 shadow-sm">
+            class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest bg-purple-50 text-purple-650 border border-purple-100 shadow-sm">
             <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
             Admin
           </span>
@@ -299,7 +309,7 @@ watch(route, () => {
 
             <!-- Dropdown Card -->
             <div v-if="showNotificationsDropdown" 
-                 class="absolute right-0 mt-2.5 w-80 sm:w-96 bg-white border border-gray-150 rounded-3xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-3 duration-250 text-left">
+                 class="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-[76px] sm:top-auto mt-2.5 sm:w-96 max-w-md sm:max-w-none mx-auto sm:mx-0 bg-white border border-gray-150 rounded-3xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-3 duration-250 text-left">
               <!-- Popover Header -->
               <div class="px-5 py-4 bg-gray-50/70 border-b border-gray-100 flex items-center justify-between">
                 <h4 class="font-black text-gray-900 text-xs tracking-tight flex items-center gap-1.5">
@@ -341,9 +351,14 @@ watch(route, () => {
                     </p>
                   </div>
 
-                  <!-- Unread status dot -->
-                  <div v-if="!notif.read" class="flex-shrink-0 self-center">
-                    <span class="w-2 h-2 bg-brand-purple rounded-full block"></span>
+                  <!-- Unread status dot & Delete button -->
+                  <div class="flex-shrink-0 self-center flex items-center gap-2">
+                    <span v-if="!notif.read" class="w-2 h-2 bg-brand-purple rounded-full block"></span>
+                    <button @click.stop="handleDelete(notif.id)" 
+                            class="p-1 text-gray-450 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            title="Delete notification">
+                      <i class="mdi mdi-close text-sm"></i>
+                    </button>
                   </div>
                 </div>
 
@@ -371,10 +386,10 @@ watch(route, () => {
 
           <!-- Back to Employee Profile / View Button -->
           <button @click="router.push('/overview')"
-            class="flex items-center gap-2 px-5 py-1.5 border border-brand-orange/30 bg-brand-orange/10 hover:bg-brand-orange text-brand-orange hover:text-white rounded-xl font-bold text-xs transition-all duration-200 active:scale-95 shadow-md shadow-brand-orange/5"
+            class="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 border border-brand-orange/30 bg-brand-orange/10 hover:bg-brand-orange text-brand-orange hover:text-white rounded-xl font-bold text-xs transition-all duration-200 active:scale-95 shadow-md shadow-brand-orange/5"
             title="Switch to Employee Workspace">
             <i class="mdi mdi-account-circle text-base"></i>
-            <span>Employee View</span>
+            <span class="hidden sm:inline">Employee View</span>
           </button>
         </div>
       </header>

@@ -111,10 +111,11 @@ watch(route, () => {
       @click="isMobileMenuOpen = false">
     </div>
 
-    <!-- Desktop Sidebar -->
+    <!-- Sidebar -->
     <aside :class="[
-      'hidden lg:flex flex-col bg-white border-r border-gray-100 transition-all duration-300 z-30 sticky top-0 h-screen',
-      isSidebarCollapsed ? 'w-20' : 'w-64'
+      'fixed lg:sticky inset-y-0 left-0 z-[70] h-screen bg-white border-r border-gray-100 transition-all duration-300 flex flex-col',
+      isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64',
+      isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
     ]">
       <!-- Organization Logo/Name -->
       <div class="p-6 flex items-center justify-between border-b border-gray-50">
@@ -183,7 +184,7 @@ watch(route, () => {
     <!-- Main Content -->
     <main class="flex-grow flex flex-col min-w-0 overflow-hidden relative">
       <!-- Navbar / Header -->
-      <header class="h-20 flex items-center justify-between px-8 bg-white/95 backdrop-blur-md border-b border-purple-100 z-40 flex-shrink-0">
+      <header class="h-20 flex items-center justify-between px-4 sm:px-8 bg-white/95 backdrop-blur-md border-b border-purple-100 z-40 flex-shrink-0">
         <div class="flex items-center gap-4">
           <!-- Mobile Menu Toggle -->
           <button @click="toggleMobileMenu"

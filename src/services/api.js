@@ -700,3 +700,22 @@ export const markAllNotificationsAsRead = async (userId, companyId = 1) => {
   return true;
 };
 
+export const deleteNotification = async (id, companyId = 1) => {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  } catch (err) {
+    console.warn('Supabase delete notification failed, using fallback:', err);
+  }
+
+  // Fallback
+  const key = `hrms_notifications_${companyId}`;
+  const local = JSON.parse(localStorage.getItem(key) || '[]');
+  const filtered = local.filter(n => n.id !== id);
+  localStorage.setItem(key, JSON.stringify(filtered));
+  return true;
+};
+
