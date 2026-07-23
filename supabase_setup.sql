@@ -824,4 +824,45 @@ ON public.notifications FOR DELETE
 TO authenticated USING (true);
 
 
+-- ==========================================
+-- 18. Create Candidates Table
+-- ==========================================
+CREATE TABLE IF NOT EXISTS public.candidates (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  department TEXT NOT NULL,
+  designation TEXT NOT NULL,
+  notice_period TEXT DEFAULT 'Immediate',
+  expected_joining_date DATE,
+  expected_salary TEXT,
+  current_salary TEXT,
+  status TEXT DEFAULT 'Applied', -- 'Applied', 'Screening', 'Technical Round', 'Manager Round', 'HR Round', 'Offered', 'Hired', 'Rejected'
+  current_round INTEGER DEFAULT 1,
+  notes TEXT,
+  "companyId" INTEGER DEFAULT 1 REFERENCES public.companies(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
+-- Enable RLS on Candidates table
+ALTER TABLE public.candidates ENABLE ROW LEVEL SECURITY;
+
+-- Candidates RLS policies
+DROP POLICY IF EXISTS "Allow authenticated users to read candidates" ON public.candidates;
+CREATE POLICY "Allow authenticated users to read candidates"
+ON public.candidates FOR SELECT
+TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow admins to manage candidates" ON public.candidates;
+CREATE POLICY "Allow admins to manage candidates"
+ON public.candidates FOR ALL
+TO authenticated
+USING (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+)
+WITH CHECK (
+  auth.jwt() ->> 'email' = 'testuser9@gmail.com' OR
+  LOWER(COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '')) = 'admin'
+);

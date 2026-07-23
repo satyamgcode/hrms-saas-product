@@ -161,6 +161,7 @@ const handleLogout = async () => {
 const sideBarList = [
   { text: 'Dashboard', route: '/admin/dashboard', icon: 'mdi-view-dashboard' },
   { text: 'Employees', route: '/admin/employees', icon: 'mdi-account-group' },
+  { text: 'Recruitment', route: '/admin/candidates', icon: 'mdi-briefcase-account-outline' },
   { text: 'Document Management', route: '/admin/documents', icon: 'mdi-folder-account-outline' },
   { text: 'Leave Approvals', route: '/admin/leaves', icon: 'mdi-calendar-clock' },
   { text: 'Payroll Management', route: '/admin/payroll', icon: 'mdi-cash-multiple' },

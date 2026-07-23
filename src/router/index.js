@@ -29,6 +29,11 @@ const routes = [
         component: () => import('../components/admin/AdminEmployees.vue'),
       },
       {
+        path: 'candidates',
+        name: 'admin-candidates',
+        component: () => import('../components/admin/AdminCandidates.vue'),
+      },
+      {
         path: 'documents',
         name: 'admin-documents',
         component: () => import('../components/admin/AdminDocuments.vue'),
