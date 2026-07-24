@@ -2,16 +2,9 @@
 import defaultLogo from '../../assets/home-logo.svg';
 import { useRouter, useRoute } from 'vue-router';
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
-import { 
-  getCurrentSession, 
-  getUserProfile, 
-  getCompany,
-  getNotifications,
-  markNotificationAsRead,
-  markAllNotificationsAsRead,
-  deleteNotification
-} from '../../services/api';
+import { getCurrentSession, getUserProfile, getCompany, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from '../../services/api';
 import { supabase } from '../../utils/supabase';
+import KittyWidget from './KittyWidget.vue';
 
 const orgName = ref('HRMS Admin');
 const orgLogo = ref(defaultLogo);
@@ -248,8 +241,8 @@ watch(route, () => {
 
           <div v-show="!isSidebarCollapsed" class="ml-3 flex-grow min-w-0">
             <p class="text-sm font-bold text-gray-900 truncate">{{ loggedInUser.name }}</p>
-            <p class="text-[10px] uppercase tracking-wider font-black text-gray-400 truncate">{{ loggedInUser.role }}
-            </p>
+            <p class="text-[10px] font-semibold text-gray-500 truncate mb-0.5" :title="loggedInUser.email">{{ loggedInUser.email }}</p>
+            <p class="text-[9px] uppercase tracking-widest font-black text-gray-450 truncate">{{ loggedInUser.role }}</p>
           </div>
 
           <button v-show="!isSidebarCollapsed" @click="handleLogout"
@@ -406,6 +399,9 @@ watch(route, () => {
         </div>
       </div>
     </main>
+    
+    <!-- Global Kitty AI Assistant -->
+    <KittyWidget :companyId="currentCompanyId" />
   </div>
 </template>
 

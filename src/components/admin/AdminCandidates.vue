@@ -513,7 +513,7 @@ const getNoticeColor = (notice) => {
                 <div class="flex items-center justify-end gap-2">
                   <button v-if="cand.status === 'Hired'" @click="handleHireCandidate(cand)"
                     :disabled="convertingId === cand.id"
-                    class="px-3.5 py-2 text-xs font-bold text-gray-800 bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm hover:shadow-emerald-500/15 flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 border border-gray-100">
+                    class="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm hover:shadow-emerald-500/15 flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 border border-gray-100">
                     <i class="mdi mdi-account-check-outline text-sm"></i>
                     {{ convertingId === cand.id ? 'Onboarding...' : 'Onboard Hired' }}
                   </button>
@@ -548,7 +548,7 @@ const getNoticeColor = (notice) => {
         </div>
 
         <!-- Content/Form -->
-        <form @submit.prevent="handleAddCandidate" class="p-6 space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+        <form @submit.prevent="handleAddCandidate" class="p-6 space-y-4">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Full Name *</label>
@@ -663,8 +663,7 @@ const getNoticeColor = (notice) => {
         </div>
 
         <!-- Form content -->
-        <form @submit.prevent="handleUpdateCandidate"
-          class="p-6 space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+        <form @submit.prevent="handleUpdateCandidate" class="p-6 space-y-4">
 
           <!-- Hired & Convert to Employee Top Banner -->
           <div v-if="editForm.status === 'Hired'"
@@ -682,7 +681,7 @@ const getNoticeColor = (notice) => {
             </div>
             <button type="button" @click="handleHireCandidate(selectedCandidate)"
               :disabled="convertingId === selectedCandidate.id"
-              class="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-gray-800 font-bold text-xs rounded-xl shadow-md shadow-emerald-500/15 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-50">
+              class="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/15 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-50">
               <i class="mdi mdi-account-check-outline text-sm"></i>
               {{ convertingId === selectedCandidate.id ? 'Converting...' : 'Convert to Employee' }}
             </button>
