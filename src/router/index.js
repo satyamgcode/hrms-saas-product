@@ -59,6 +59,11 @@ const routes = [
         component: () => import('../components/admin/AdminAttendance.vue'),
       },
       {
+        path: 'projects',
+        name: 'admin-projects',
+        component: () => import('../components/admin/AdminProjects.vue'),
+      },
+      {
         path: 'settings',
         name: 'admin-settings',
         component: () => import('../components/admin/AdminSettings.vue'),

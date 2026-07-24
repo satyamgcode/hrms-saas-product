@@ -7,7 +7,7 @@ import {
   deleteCandidate,
   hireCandidate
 } from '../../services/recruitmentService';
-import { getCompany } from '../../services/api';
+import { getCompany, getCurrentSession, getUserProfile } from '../../services/api';
 import { addToast } from '../../services/toastService';
 
 const candidates = ref([]);
@@ -55,6 +55,14 @@ const stages = [
 const loadData = async () => {
   loading.value = true;
   try {
+    const session = await getCurrentSession();
+    const authUser = session?.user;
+    if (authUser) {
+      const profile = await getUserProfile({ userId: authUser.id });
+      if (profile) {
+        adminCompanyId.value = profile.companyId || 1;
+      }
+    }
     const company = await getCompany(adminCompanyId.value);
     if (company && Array.isArray(company.departments)) {
       companyDepartments.value = company.departments;
@@ -247,7 +255,7 @@ const getNoticeColor = (notice) => {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 sm:p-8 bg-gray-50/50">
+  <div class="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 sm:p-8 bg-gray-50/50 no-scrollbar">
     <!-- Header Controls -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
       <div>
@@ -337,7 +345,7 @@ const getNoticeColor = (notice) => {
     </div>
 
     <!-- VIEW 1: KANBAN BOARD -->
-    <div v-else-if="viewMode === 'kanban'" class="flex-1 overflow-x-auto pb-6">
+    <div v-else-if="viewMode === 'kanban'" class="flex-1 overflow-x-auto pb-6 no-scrollbar">
       <div class="flex gap-4 min-w-[1200px] h-full items-start">
         <div v-for="stage in stages" :key="stage.key"
           class="flex-shrink-0 w-80 bg-white/40 border border-purple-100/20 p-4 rounded-3xl flex flex-col max-h-[640px] shadow-sm backdrop-blur-sm">
@@ -357,7 +365,7 @@ const getNoticeColor = (notice) => {
           </div>
 
           <!-- Column Cards Scrollable container -->
-          <div class="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+          <div class="flex-1 overflow-y-auto space-y-3 pr-1 no-scrollbar">
             <!-- Candidate Cards -->
             <div v-for="cand in candidatesByStage[stage.key]" :key="cand.id"
               class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-purple-200 transition-all group relative">
@@ -784,3 +792,16 @@ const getNoticeColor = (notice) => {
 
   </div>
 </template>
+
+<style scoped>
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+</style>

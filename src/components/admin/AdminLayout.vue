@@ -159,7 +159,8 @@ const sideBarList = [
   { text: 'Leave Approvals', route: '/admin/leaves', icon: 'mdi-calendar-clock' },
   { text: 'Payroll Management', route: '/admin/payroll', icon: 'mdi-cash-multiple' },
   { text: 'Attendance Management', route: '/admin/attendance', icon: 'mdi-clock-check-outline' },
-  { text: 'Company Policies', route: '/admin/policies', icon: 'mdi-file-document' }
+  { text: 'Company Policies', route: '/admin/policies', icon: 'mdi-file-document' },
+  { text: 'Projects & Clients', route: '/admin/projects', icon: 'mdi-briefcase-variant-outline' }
 ];
 
 const activeTab = ref(route.path);

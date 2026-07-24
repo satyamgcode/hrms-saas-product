@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { getCurrentUser, getUserProfile } from '../services/api';
+import { getEmployeeAssignments } from '../services/projectService';
 import EmployeePage from './EmployeePage.vue';
 
 const employeeData = ref({
@@ -25,14 +26,30 @@ const employeeData = ref({
     department: ''
 });
 
+const userAssignments = ref([]);
+
 onMounted(async () => {
     try {
         const user = await getCurrentUser();
         if (user) {
             const profile = await getUserProfile({ email: user.email });
             if (profile) {
+                // Fetch dynamic project assignments
+                const assignments = await getEmployeeAssignments(profile.id);
+                userAssignments.value = assignments;
+                
+                // Count unique clients
+                const clientNames = new Set();
+                assignments.forEach(a => {
+                    if (a.project?.client?.name) {
+                        clientNames.add(a.project.client.name);
+                    }
+                });
+
                 employeeData.value = {
                     ...profile,
+                    projects: assignments.length,
+                    clients: clientNames.size,
                     role: profile.role || profile.designation || 'Member',
                     joiningDate: profile.joining_date || '',
                     socialLinks: profile.social_links || { facebook: '#', twitter: '#', linkedin: '#' },
@@ -118,6 +135,53 @@ const stats = [
                         <p class="text-gray-600 leading-relaxed font-medium">
                             {{ employeeData.bio || 'No bio available. Add one to help people get to know you better!' }}
                         </p>
+                    </div>
+
+                    <!-- Active Project Assignments Section -->
+                    <div class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm text-left">
+                        <h3 class="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+                            <i class="mdi mdi-briefcase-variant text-brand-purple"></i>
+                            Assigned Projects
+                        </h3>
+                        
+                        <div v-if="userAssignments.length === 0" class="py-12 text-center text-gray-400 border border-dashed border-gray-250 rounded-2xl">
+                            <i class="mdi mdi-briefcase-outline text-4xl text-gray-300"></i>
+                            <p class="text-xs font-semibold mt-2">No active project assignments linked to your profile.</p>
+                        </div>
+
+                        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div v-for="a in userAssignments" :key="a.id" 
+                                 class="p-5 border border-purple-100/50 hover:border-brand-purple rounded-2xl transition bg-gray-50/20 text-left relative overflow-hidden group flex flex-col justify-between">
+                                <div>
+                                    <div class="flex justify-between items-start mb-3.5">
+                                        <span class="px-2.5 py-1 bg-purple-50 text-brand-purple text-[10px] font-black uppercase tracking-wider rounded-xl border border-purple-100/30">
+                                            {{ a.role }}
+                                        </span>
+                                        <span :class="['px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md border', 
+                                            a.project?.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                            a.project?.status === 'In Progress' ? 'bg-indigo-50 text-brand-purple border-indigo-100' :
+                                            a.project?.status === 'On Hold' ? 'bg-amber-50 text-brand-orange border-amber-100' : 'bg-gray-100 text-gray-500 border-gray-200'
+                                        ]">
+                                            {{ a.project?.status || 'Planning' }}
+                                        </span>
+                                    </div>
+                                    <h4 class="text-sm font-black text-gray-950 group-hover:text-brand-purple transition-colors leading-snug">{{ a.project?.name }}</h4>
+                                    <p v-if="a.project?.client?.name" class="text-xs text-brand-orange font-bold mt-1.5 flex items-center gap-1">
+                                        <i class="mdi mdi-handshake"></i>
+                                        {{ a.project.client.name }}
+                                    </p>
+                                    <p class="text-xs text-gray-500 mt-3 font-medium leading-relaxed line-clamp-3">
+                                        {{ a.project?.description || 'No description provided.' }}
+                                    </p>
+                                </div>
+                                <div class="mt-4 pt-3.5 border-t border-gray-100/55 flex justify-between items-center text-[10px] text-gray-400 font-bold">
+                                    <span>Timeline</span>
+                                    <span class="text-gray-600">
+                                        {{ a.project?.start_date || 'N/A' }} - {{ a.project?.end_date || 'N/A' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
