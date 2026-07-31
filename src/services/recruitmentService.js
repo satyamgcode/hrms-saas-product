@@ -220,7 +220,7 @@ export const deleteCandidate = async (id) => {
   return true;
 };
 
-export const hireCandidate = async (candidate, companyId = 1) => {
+export const hireCandidate = async (candidate, companyId = 1, password = 'Password123!') => {
   await ensureDbChecked();
 
   const employeePayload = {
@@ -234,7 +234,7 @@ export const hireCandidate = async (candidate, companyId = 1) => {
     department: candidate.department,
     status: 'active',
     joining_date: candidate.expected_joining_date || new Date().toISOString().split('T')[0],
-    password: 'Password123!', // Default temporary password for hired employee
+    password: password,
     social_links: { facebook: '', twitter: '', linkedin: '' }
   };
 

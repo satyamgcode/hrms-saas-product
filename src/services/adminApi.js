@@ -30,7 +30,19 @@ export const adminApi = {
       .eq('companyId', companyId)
       .order('name', { ascending: true });
     throwIfError(error);
-    return data ?? [];
+    
+    // Filter out employees whose joining date is in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return (data ?? []).filter(emp => {
+      if (emp.joining_date) {
+        const joinDate = new Date(emp.joining_date);
+        joinDate.setHours(0, 0, 0, 0);
+        return today >= joinDate;
+      }
+      return true; // If no joining date is set, show them
+    });
   },
 
   async getEmployeeById(id) {

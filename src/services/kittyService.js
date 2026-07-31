@@ -117,7 +117,7 @@ export const parseLocalQuery = (message, state) => {
     const absents = state.attendance_today.list.filter(a => a.status === 'Absent');
     const onLeaves = state.leaves.active;
     
-    let text = `😸 **Kitty Report: Absences & Leaves Today**\n\n`;
+    let text = `🤖 **HR Copilot Report: Absences & Leaves Today**\n\n`;
     text += `There are **${absents.length}** employees registered as absent today. `;
     if (onLeaves.length > 0) {
       text += `Additionally, **${onLeaves.length}** employee(s) are on approved leave today.\n\n`;
@@ -147,7 +147,7 @@ export const parseLocalQuery = (message, state) => {
     const presents = state.attendance_today.list.filter(a => a.status === 'Present' || a.status === 'Late' || a.status === 'On Break');
     const lates = state.attendance_today.list.filter(a => a.status === 'Late');
 
-    let text = `😸 **Kitty Report: Today's Attendance**\n\n`;
+    let text = `🤖 **HR Copilot Report: Today's Attendance**\n\n`;
     text += `Total Clocked In Today: **${presents.length}** employees.\n`;
     text += `- Present On-Time: **${presents.length - lates.length}**\n`;
     text += `- Clocked In Late: **${lates.length}**\n\n`;
@@ -175,7 +175,7 @@ export const parseLocalQuery = (message, state) => {
       cand.status === 'Hired' && cand.expected_joining_date && cand.expected_joining_date.startsWith(currentMonth)
     );
 
-    let text = `😸 **Kitty Report: New Hires for ${currentMonthName}**\n\n`;
+    let text = `🤖 **HR Copilot Report: New Hires for ${currentMonthName}**\n\n`;
     text += `New Joins active this month: **${newJoins.length}**\n`;
     text += `Hired Candidates onboarding this month: **${upcomingCandidates.length}**\n\n`;
 
@@ -203,7 +203,7 @@ export const parseLocalQuery = (message, state) => {
   // 3. Candidates and recruitment
   if (query.includes('candidate') || query.includes('interview') || query.includes('recruit') || query.includes('pipeline')) {
     const pipeline = state.candidates.list;
-    let text = `😸 **Kitty Report: Recruitment Pipeline**\n\n`;
+    let text = `🤖 **HR Copilot Report: Recruitment Pipeline**\n\n`;
     text += `There are currently **${pipeline.length}** candidates in the hiring pipeline.\n\n`;
 
     if (pipeline.length > 0) {
@@ -229,7 +229,7 @@ export const parseLocalQuery = (message, state) => {
 
   // 4. Policies
   if (query.includes('policy') || query.includes('policies') || query.includes('rules')) {
-    let text = `😸 **Kitty Report: Company Policies**\n\n`;
+    let text = `🤖 **HR Copilot Report: Company Policies**\n\n`;
     if (state.policies.length > 0) {
       text += `Here are the registered company terms & policies:\n`;
       state.policies.forEach(p => {
@@ -242,7 +242,7 @@ export const parseLocalQuery = (message, state) => {
   }
 
   // 5. Help / Fallback
-  return `😸 **Meow! I am Kitty, your HR assistant.**
+  return `🤖 **Hello! I am HR Copilot, your professional HR assistant.**
 
 I can check company records and compile details instantly. Ask me specific questions, for example:
 - *"How many employees are absent today?"*
@@ -257,7 +257,7 @@ Click the **Settings (gear icon)** at the top right of this chat, enter your **G
 };
 
 // Main entry query resolver
-export const queryKitty = async (message, companyId = 1, apiKey = '', model = 'gemini-2.5-flash') => {
+export const queryHRCopilot = async (message, companyId = 1, apiKey = '', model = 'gemini-2.5-flash') => {
   const state = await getCompanyState(companyId);
 
   // If no Gemini key is provided, parse locally using deterministic logic
@@ -270,7 +270,7 @@ export const queryKitty = async (message, companyId = 1, apiKey = '', model = 'g
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     
     // Create system instructions including database state context
-    const systemContext = `You are Kitty, a helpful, highly intelligent, and slightly playful AI assistant integrated inside this company's HRMS dashboard. 
+    const systemContext = `You are HR Copilot, a helpful, highly intelligent, and professional AI assistant integrated inside this company's HRMS dashboard. 
 You have access to the current date and the real-time company database. 
 
 Current Date: ${state.current_date}
@@ -279,7 +279,7 @@ Here is the current database JSON state of the company:
 ${JSON.stringify(state, null, 2)}
 
 Instructions:
-1. Always introduce yourself or address the user as Kitty when appropriate (you can add brief playfulness like "Meow" or similar subtle cat touches, but keep it professional).
+1. Always introduce yourself or address the user as HR Copilot when appropriate.
 2. Answer the user's questions clearly, accurately, and concisely based strictly on the provided company state.
 3. If they ask about attendance/absents today, parse the 'attendance_today' dataset and state counts and names.
 4. If they ask about new joins, check joining dates and candidates in the 'Hired' stage.
@@ -320,7 +320,7 @@ Instructions:
       const errData = await response.json();
       const errMsg = errData?.error?.message || 'Invalid Request (check key and quota)';
       console.warn('Gemini API request failed, falling back to local database parsing:', errData);
-      return `⚠️ **Gemini API Error: ${errMsg} (Falling back to Kitty Local Engine):**\n\n` + parseLocalQuery(message, state);
+      return `⚠️ **Gemini API Error: ${errMsg} (Falling back to HR Copilot Local Engine):**\n\n` + parseLocalQuery(message, state);
     }
 
     const resJson = await response.json();
@@ -334,6 +334,6 @@ Instructions:
 
   } catch (error) {
     console.error('Error calling Gemini API for Kitty:', error);
-    return `⚠️ **Kitty Service Connection Error (Fallback activated):**\n\n` + parseLocalQuery(message, state);
+    return `⚠️ **HR Copilot Service Connection Error (Fallback activated):**\n\n` + parseLocalQuery(message, state);
   }
 };

@@ -84,13 +84,26 @@ onMounted(loadData);
 
 // Stats computation
 const stats = computed(() => {
-  const total = candidates.value.length;
-  const interviewing = candidates.value.filter(c =>
+  const activeCandidates = candidates.value.filter(cand => {
+    if (cand.status === 'Hired' && cand.expected_joining_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const joinDate = new Date(cand.expected_joining_date);
+      joinDate.setHours(0, 0, 0, 0);
+      if (today >= joinDate) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const total = activeCandidates.length;
+  const interviewing = activeCandidates.filter(c =>
     ['Technical Round', 'Manager Round', 'HR Round'].includes(c.status)
   ).length;
-  const offered = candidates.value.filter(c => c.status === 'Offered').length;
-  const hired = candidates.value.filter(c => c.status === 'Hired').length;
-  const screening = candidates.value.filter(c => c.status === 'Screening').length;
+  const offered = activeCandidates.filter(c => c.status === 'Offered').length;
+  const hired = activeCandidates.filter(c => c.status === 'Hired').length;
+  const screening = activeCandidates.filter(c => c.status === 'Screening').length;
 
   return [
     { label: 'Total Applicants', value: total, icon: 'mdi-account-group', color: 'text-purple-650 bg-purple-50' },
@@ -104,6 +117,17 @@ const stats = computed(() => {
 // Filtering and search logic
 const filteredCandidates = computed(() => {
   return candidates.value.filter(cand => {
+    // Hide hired candidates if their joining date is today or in the past
+    if (cand.status === 'Hired' && cand.expected_joining_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const joinDate = new Date(cand.expected_joining_date);
+      joinDate.setHours(0, 0, 0, 0);
+      if (today >= joinDate) {
+        return false;
+      }
+    }
+
     const matchesSearch = cand.name.toLowerCase().includes(search.value.toLowerCase()) ||
       cand.email.toLowerCase().includes(search.value.toLowerCase()) ||
       cand.designation.toLowerCase().includes(search.value.toLowerCase());
@@ -226,17 +250,37 @@ const rejectCandidate = async (candidate) => {
 
 // Hire & onboarding conversion flow
 const convertingId = ref(null);
-const handleHireCandidate = async (candidate) => {
-  convertingId.value = candidate.id;
+const showHireModal = ref(false);
+const candidateToHire = ref(null);
+const hirePassword = ref('Password123!');
+const showHirePassword = ref(false);
+
+const startHireFlow = (candidate) => {
+  candidateToHire.value = candidate;
+  hirePassword.value = 'Password123!';
+  showHirePassword.value = false;
+  showHireModal.value = true;
+};
+
+const confirmHireCandidate = async () => {
+  if (!hirePassword.value || hirePassword.value.length < 6) {
+    addToast('Password must be at least 6 characters long', 'warning');
+    return;
+  }
+  
+  convertingId.value = candidateToHire.value.id;
+  showHireModal.value = false;
   try {
-    await hireCandidate(candidate, adminCompanyId.value);
-    addToast(`Congratulations! ${candidate.name} has been hired and added as an active employee!`, 'success');
+    await hireCandidate(candidateToHire.value, adminCompanyId.value, hirePassword.value);
+    addToast(`Congratulations! ${candidateToHire.value.name} has been hired and added as an active employee!`, 'success');
+    showEditModal.value = false;
     await loadData(); // Reload listings
   } catch (error) {
     console.error('Failed to convert candidate:', error);
     addToast('Conversion failed: ' + (error.message || 'Error executing employee generation'), 'error');
   } finally {
     convertingId.value = null;
+    candidateToHire.value = null;
   }
 };
 
@@ -374,7 +418,7 @@ const getNoticeColor = (notice) => {
               <div v-if="cand.status === 'Hired'"
                 class="mb-2 p-1.5 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-between">
                 <span class="text-[10px] font-black text-emerald-800 uppercase tracking-wider">Hired & Ready</span>
-                <button @click="handleHireCandidate(cand)" :disabled="convertingId === cand.id"
+                <button @click="startHireFlow(cand)" :disabled="convertingId === cand.id"
                   class="px-2 py-0.5 text-[10px] font-bold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition disabled:opacity-50">
                   <span v-if="convertingId === cand.id">Creating...</span>
                   <span v-else>Onboard</span>
@@ -519,7 +563,7 @@ const getNoticeColor = (notice) => {
               <!-- Action Menu -->
               <td class="p-4 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  <button v-if="cand.status === 'Hired'" @click="handleHireCandidate(cand)"
+                  <button v-if="cand.status === 'Hired'" @click="startHireFlow(cand)"
                     :disabled="convertingId === cand.id"
                     class="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm hover:shadow-emerald-500/15 flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 border border-gray-100">
                     <i class="mdi mdi-account-check-outline text-sm"></i>
@@ -687,7 +731,7 @@ const getNoticeColor = (notice) => {
                   into an active system employee.</p>
               </div>
             </div>
-            <button type="button" @click="handleHireCandidate(selectedCandidate)"
+            <button type="button" @click="startHireFlow(selectedCandidate)"
               :disabled="convertingId === selectedCandidate.id"
               class="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/15 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-50">
               <i class="mdi mdi-account-check-outline text-sm"></i>
@@ -784,6 +828,70 @@ const getNoticeColor = (notice) => {
             <button type="submit"
               class="px-5 py-2.5 rounded-2xl bg-brand-purple font-bold text-sm text-white hover:bg-purple-700 shadow-md shadow-brand-purple/10 transition-all">
               Update Candidate
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Onboarding Password Modal -->
+    <div v-if="showHireModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div
+        class="bg-white rounded-[32px] w-full max-w-md border border-purple-100/50 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <!-- Modal header -->
+        <div class="p-6 pb-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-black text-gray-900">Set Employee Password</h3>
+            <p class="text-xs font-medium text-gray-500">Create a system access password for the hired employee.</p>
+          </div>
+          <button @click="showHireModal = false"
+            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all">
+            <i class="mdi mdi-close text-lg"></i>
+          </button>
+        </div>
+
+        <!-- Form Content -->
+        <form @submit.prevent="confirmHireCandidate" class="p-6 space-y-4">
+          <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 text-sm space-y-2">
+            <div class="flex justify-between">
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Employee Name</span>
+              <span class="font-bold text-gray-800">{{ candidateToHire?.name }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Email Address</span>
+              <span class="font-bold text-gray-800 text-xs select-all">{{ candidateToHire?.email }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Role</span>
+              <span class="font-bold text-brand-purple">Employee</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Sign In Password *</label>
+            <div class="relative">
+              <input :type="showHirePassword ? 'text' : 'password'" v-model="hirePassword" required minlength="6"
+                class="w-full px-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple transition-all pr-11"
+                placeholder="Enter password (min 6 characters)" />
+              <button type="button" @click="showHirePassword = !showHirePassword"
+                class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                <i :class="['mdi', showHirePassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline', 'text-lg']"></i>
+              </button>
+            </div>
+            <p class="text-[10px] text-gray-400 mt-1">Hired employee will use this password to login to the HRMS software.</p>
+          </div>
+
+          <!-- Modal footer actions -->
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+            <button type="button" @click="showHireModal = false"
+              class="px-5 py-2.5 rounded-2xl border border-gray-200 font-bold text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-all">
+              Cancel
+            </button>
+            <button type="submit" :disabled="convertingId === candidateToHire?.id"
+              class="px-5 py-2.5 rounded-2xl bg-emerald-600 font-bold text-sm text-white hover:bg-emerald-700 shadow-md shadow-emerald-500/10 transition-all flex items-center gap-1.5 disabled:opacity-50">
+              <i class="mdi mdi-account-check-outline text-sm"></i>
+              {{ convertingId === candidateToHire?.id ? 'Converting...' : 'Complete Onboarding' }}
             </button>
           </div>
         </form>

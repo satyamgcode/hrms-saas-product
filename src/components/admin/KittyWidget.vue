@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
-import { queryKitty } from '../../services/kittyService';
+import { queryHRCopilot } from '../../services/kittyService';
 import { addToast } from '../../services/toastService';
 
 const isOpen = ref(false);
@@ -29,10 +29,10 @@ const suggestions = [
 
 onMounted(() => {
   // Load saved API Key, model, and message history
-  apiKey.value = localStorage.getItem('kitty_api_key') || '';
-  selectedModel.value = localStorage.getItem('kitty_model') || 'gemini-2.5-flash';
+  apiKey.value = localStorage.getItem('hr_copilot_api_key') || '';
+  selectedModel.value = localStorage.getItem('hr_copilot_model') || 'gemini-2.5-flash';
   
-  const savedHistory = localStorage.getItem('kitty_chat_history');
+  const savedHistory = localStorage.getItem('hr_copilot_chat_history');
   if (savedHistory) {
     try {
       messages.value = JSON.parse(savedHistory);
@@ -45,8 +45,8 @@ onMounted(() => {
   if (messages.value.length === 0) {
     messages.value.push({
       id: 1,
-      sender: 'kitty',
-      text: 'Meow! I am **Kitty**, your company database co-pilot. I can fetch live details about attendance, leaves, new joins, and candidates! Ask me anything, or try the suggestions below. 😸',
+      sender: 'hr_copilot',
+      text: 'Hello! I am **HR Copilot**, your company database co-pilot. I can fetch live details about attendance, leaves, new joins, and candidates! Ask me anything, or try the suggestions below. 🤖',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
   }
@@ -67,10 +67,10 @@ const toggleChat = () => {
 };
 
 const saveSettings = () => {
-  localStorage.setItem('kitty_api_key', apiKey.value.trim());
-  localStorage.setItem('kitty_model', selectedModel.value);
+  localStorage.setItem('hr_copilot_api_key', apiKey.value.trim());
+  localStorage.setItem('hr_copilot_model', selectedModel.value);
   showSettings.value = false;
-  addToast(apiKey.value.trim() ? `Kitty configured with ${selectedModel.value}!` : 'API Key cleared. Kitty is running in local fallback mode.', 'success');
+  addToast(apiKey.value.trim() ? `HR Copilot configured with ${selectedModel.value}!` : 'API Key cleared. HR Copilot is running in local fallback mode.', 'success');
 };
 
 const sendMessage = async (textToSend) => {
@@ -97,19 +97,19 @@ const sendMessage = async (textToSend) => {
   isTyping.value = true;
   
   try {
-    const response = await queryKitty(msgText, props.companyId, apiKey.value, selectedModel.value);
+    const response = await queryHRCopilot(msgText, props.companyId, apiKey.value, selectedModel.value);
     
-    // Push Kitty response
-    const kittyMsg = {
+    // Push HR Copilot response
+    const copilotMsg = {
       id: Date.now() + 1,
-      sender: 'kitty',
+      sender: 'hr_copilot',
       text: response,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    messages.value.push(kittyMsg);
+    messages.value.push(copilotMsg);
     saveHistoryToStorage();
   } catch (error) {
-    addToast('Kitty encountered an error querying the database', 'error');
+    addToast('HR Copilot encountered an error querying the database', 'error');
   } finally {
     isTyping.value = false;
     scrollToBottom();
@@ -117,12 +117,12 @@ const sendMessage = async (textToSend) => {
 };
 
 const clearChat = () => {
-  if (confirm('Clear Kitty chat logs?')) {
+  if (confirm('Clear HR Copilot chat logs?')) {
     messages.value = [
       {
         id: Date.now(),
-        sender: 'kitty',
-        text: 'Meow! Clean slate! What database metric can I inspect for you now? 😸',
+        sender: 'hr_copilot',
+        text: 'Clean slate! What database metric can I inspect for you now? 🤖',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ];
@@ -133,7 +133,7 @@ const clearChat = () => {
 const saveHistoryToStorage = () => {
   // Keep last 30 messages to avoid overfilling localStorage
   const trimmed = messages.value.slice(-30);
-  localStorage.setItem('kitty_chat_history', JSON.stringify(trimmed));
+  localStorage.setItem('hr_copilot_chat_history', JSON.stringify(trimmed));
 };
 
 // Markdown formatter to make responses look premium
@@ -171,8 +171,8 @@ const formatMessage = (text) => {
       <!-- Pulse Ring animation -->
       <span class="absolute inset-0 rounded-full bg-brand-purple/40 animate-ping opacity-75 group-hover:animate-none"></span>
       
-      <!-- Icon (Cat head) -->
-      <i class="mdi mdi-cat text-2xl relative z-10 transition-transform group-hover:rotate-12"></i>
+      <!-- Icon (Robot) -->
+      <i class="mdi mdi-robot-outline text-2xl relative z-10 transition-transform group-hover:rotate-12"></i>
       
       <!-- Little Badge -->
       <span class="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
@@ -192,7 +192,7 @@ const formatMessage = (text) => {
           <!-- Branded Avatar matching Layout -->
           <div class="relative flex-shrink-0">
             <div class="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-150 flex items-center justify-center text-brand-purple shadow-sm">
-              <i class="mdi mdi-cat text-2xl"></i>
+              <i class="mdi mdi-robot-outline text-2xl"></i>
             </div>
             <!-- Status dot indicator -->
             <span class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full flex items-center justify-center shadow-sm">
@@ -202,7 +202,7 @@ const formatMessage = (text) => {
           
           <div class="text-left">
             <div class="flex items-center gap-2">
-              <h3 class="text-sm font-black tracking-tight text-gray-950 leading-none">Kitty AI</h3>
+              <h3 class="text-sm font-black tracking-tight text-gray-950 leading-none">HR Copilot</h3>
               <span class="px-2 py-0.5 text-[9px] font-black uppercase bg-purple-50 text-brand-purple border border-purple-100 rounded-md tracking-wider leading-none shadow-sm">
                 CO-PILOT
               </span>
@@ -239,9 +239,9 @@ const formatMessage = (text) => {
         <!-- SETTINGS PANEL (Slide down overlay) -->
         <transition enter-active-class="transition duration-200 ease-out" enter-from-class="-translate-y-2 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="-translate-y-2 opacity-0">
           <div v-if="showSettings" class="absolute inset-x-0 top-0 bg-gray-50 border-b border-gray-100 p-5 z-20 shadow-lg">
-            <h4 class="text-xs font-black uppercase text-gray-400 tracking-wider mb-2">Configure Kitty AI</h4>
+            <h4 class="text-xs font-black uppercase text-gray-400 tracking-wider mb-2">Configure HR Copilot</h4>
             <p class="text-[11px] text-gray-500 mb-4 leading-relaxed">
-              By default, Kitty answers core metrics locally. To enable full conversational capabilities, paste your 
+              By default, HR Copilot answers core metrics locally. To enable full conversational capabilities, paste your 
               <a href="https://aistudio.google.com/" target="_blank" class="text-brand-purple font-bold hover:underline">Google AI Studio Gemini API Key</a> below.
             </p>
             
@@ -287,7 +287,7 @@ const formatMessage = (text) => {
             <div :class="['w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border', 
               msg.sender === 'user' ? 'bg-purple-50 border-purple-100 text-brand-purple' : 'bg-white border-purple-100 text-brand-purple'
             ]">
-              <i :class="['mdi', msg.sender === 'user' ? 'mdi-account-outline' : 'mdi-cat']"></i>
+              <i :class="['mdi', msg.sender === 'user' ? 'mdi-account-outline' : 'mdi-robot-outline']"></i>
             </div>
             
             <!-- Message Bubble -->
@@ -309,11 +309,11 @@ const formatMessage = (text) => {
           <!-- Typing indicator -->
           <div v-if="isTyping" class="flex gap-3 max-w-[85%]">
             <div class="w-8 h-8 rounded-full bg-white border border-purple-100 text-brand-purple flex items-center justify-center flex-shrink-0 animate-bounce">
-              <i class="mdi mdi-cat"></i>
+              <i class="mdi mdi-robot-outline"></i>
             </div>
             <div>
               <div class="bg-white border border-purple-100/40 p-3.5 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-1.5">
-                <span class="text-xs text-gray-500 font-medium">Kitty is querying database...</span>
+                <span class="text-xs text-gray-500 font-medium">HR Copilot is querying database...</span>
                 <span class="flex gap-1">
                   <span class="w-1.5 h-1.5 bg-brand-purple rounded-full animate-bounce duration-300"></span>
                   <span class="w-1.5 h-1.5 bg-brand-purple rounded-full animate-bounce duration-300 delay-75"></span>
@@ -330,7 +330,7 @@ const formatMessage = (text) => {
           
           <!-- Suggestions list -->
           <div v-if="messages.length < 5 && !isTyping" class="mb-3">
-            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ask Kitty about:</p>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ask HR Copilot about:</p>
             <div class="flex flex-wrap gap-2">
               <button v-for="chip in suggestions" :key="chip.text" @click="sendMessage(chip.text)"
                 class="px-3 py-1.5 text-[10px] font-bold text-gray-600 bg-gray-50 hover:bg-purple-50 hover:text-brand-purple border border-gray-200 rounded-xl transition-all flex items-center gap-1">
@@ -342,7 +342,7 @@ const formatMessage = (text) => {
 
           <!-- Input bar -->
           <form @submit.prevent="() => sendMessage()" class="flex items-center gap-2">
-            <input v-model="inputMessage" type="text" placeholder="Type your question for Kitty..." :disabled="isTyping"
+            <input v-model="inputMessage" type="text" placeholder="Type your question for HR Copilot..." :disabled="isTyping"
               class="flex-grow px-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple transition-all placeholder:text-gray-400" />
             
             <button type="submit" :disabled="!inputMessage.trim() || isTyping"
