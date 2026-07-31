@@ -121,7 +121,7 @@
 
           <p class="mt-8 text-center text-sm text-gray-500">
             Don't have an account?
-            <a href="#" class="font-medium text-[#8A3EEA] hover:text-[#F3901B]">Contact Administrator</a>
+            <a :href="`${websiteUrl}/register`" class="font-medium text-[#8A3EEA] hover:text-[#F3901B]">Register</a>
           </p>
         </div>
       </div>
@@ -143,6 +143,7 @@ const company = ref(null);
 const loading = ref(false);
 const error = ref('');
 const showPassword = ref(false);
+const websiteUrl = import.meta.env.VITE_WEBSITE_URL || 'http://localhost:5174';
 
 onMounted(async () => {
   try {
@@ -187,7 +188,6 @@ const handleSignIn = async () => {
           .maybeSingle();
 
         if (onboarding && !onboarding.is_onboarded) {
-          const websiteUrl = import.meta.env.VITE_WEBSITE_URL || 'http://localhost:5174';
           const step = onboarding.onboarding_step || 1;
           const stepPaths = {
             1: '/onboarding/organization-setup',
