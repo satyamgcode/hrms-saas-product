@@ -153,13 +153,20 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
-  const refreshToken = to.query.refresh_token;
-  if (refreshToken) {
-    await supabase.auth.setSession({ refresh_token: refreshToken.toString() });
-  }
+  const { data: sessionData } = await supabase.auth.getSession();
+  let session = sessionData?.session;
 
-  const { data } = await supabase.auth.getSession();
-  const session = data?.session;
+  const refreshToken = to.query.refresh_token;
+  if (refreshToken && !session?.user) {
+    try {
+      const { data: refreshData } = await supabase.auth.refreshSession({ refresh_token: refreshToken.toString() });
+      if (refreshData?.session) {
+        session = refreshData.session;
+      }
+    } catch (e) {
+      console.error('Failed to refresh session from token:', e);
+    }
+  }
 
   if (to.path === '/signin') {
     if (session?.user) {
