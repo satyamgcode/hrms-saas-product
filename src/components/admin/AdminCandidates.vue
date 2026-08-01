@@ -7,7 +7,7 @@ import {
   deleteCandidate,
   hireCandidate
 } from '../../services/recruitmentService';
-import { getCompany, getCurrentSession, getUserProfile } from '../../services/api';
+import { getCompany, getCurrentSession, getUserProfile, getUsers } from '../../services/api';
 import { addToast } from '../../services/toastService';
 
 const candidates = ref([]);
@@ -21,6 +21,9 @@ const showAddModal = ref(false);
 const showEditModal = ref(false);
 const selectedCandidate = ref(null);
 const adminCompanyId = ref(1);
+
+// Ref for tracking onboarded employees
+const employeesList = ref([]);
 
 // Form States
 const initialForm = {
@@ -70,8 +73,12 @@ const loadData = async () => {
       companyDepartments.value = ['Software Development', 'Creative Design', 'Marketing', 'Sales', 'Human Resources', 'Finance'];
     }
 
-    const data = await getCandidates(adminCompanyId.value);
-    candidates.value = data;
+    const [candidatesData, employeesData] = await Promise.all([
+      getCandidates(adminCompanyId.value),
+      getUsers(adminCompanyId.value)
+    ]);
+    candidates.value = candidatesData;
+    employeesList.value = employeesData;
   } catch (error) {
     console.error('Failed to load candidate recruitment data:', error);
     addToast('Error loading candidate records', 'error');
@@ -85,12 +92,9 @@ onMounted(loadData);
 // Stats computation
 const stats = computed(() => {
   const activeCandidates = candidates.value.filter(cand => {
-    if (cand.status === 'Hired' && cand.expected_joining_date) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const joinDate = new Date(cand.expected_joining_date);
-      joinDate.setHours(0, 0, 0, 0);
-      if (today >= joinDate) {
+    if (cand.status === 'Hired') {
+      const isAlreadyOnboarded = employeesList.value.some(emp => emp.email === cand.email);
+      if (isAlreadyOnboarded) {
         return false;
       }
     }
@@ -117,13 +121,10 @@ const stats = computed(() => {
 // Filtering and search logic
 const filteredCandidates = computed(() => {
   return candidates.value.filter(cand => {
-    // Hide hired candidates if their joining date is today or in the past
-    if (cand.status === 'Hired' && cand.expected_joining_date) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const joinDate = new Date(cand.expected_joining_date);
-      joinDate.setHours(0, 0, 0, 0);
-      if (today >= joinDate) {
+    // Hide hired candidates if they have already been onboarded
+    if (cand.status === 'Hired') {
+      const isAlreadyOnboarded = employeesList.value.some(emp => emp.email === cand.email);
+      if (isAlreadyOnboarded) {
         return false;
       }
     }
@@ -256,6 +257,7 @@ const hirePassword = ref('Password123!');
 const showHirePassword = ref(false);
 
 const startHireFlow = (candidate) => {
+  showEditModal.value = false; // Close the Manage Candidate Profile Modal first
   candidateToHire.value = candidate;
   hirePassword.value = 'Password123!';
   showHirePassword.value = false;

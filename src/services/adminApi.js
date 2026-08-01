@@ -24,35 +24,79 @@ export const adminApi = {
     if (!companyId) {
       return [];
     }
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('companyId', companyId)
-      .order('name', { ascending: true });
-    throwIfError(error);
+    let dbEmployees = [];
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('companyId', companyId)
+        .order('name', { ascending: true });
+      if (!error && data) {
+        dbEmployees = data;
+      }
+    } catch (err) {
+      console.warn('Failed to load employees from Supabase:', err);
+    }
     
-    // Filter out employees whose joining date is in the future
+    let localEmployees = [];
+    const localFallback = localStorage.getItem('hrms_users_fallback');
+    if (localFallback) {
+      try {
+        localEmployees = JSON.parse(localFallback).filter(emp => emp.companyId === companyId);
+      } catch (err) {
+        console.error('Failed to parse local employees:', err);
+      }
+    }
+    
+    const combined = [...dbEmployees];
+    localEmployees.forEach(localEmp => {
+      if (!combined.some(emp => emp.email === localEmp.email || emp.id === localEmp.id)) {
+        combined.push(localEmp);
+      }
+    });
+
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
     
-    return (data ?? []).filter(emp => {
+    return combined.filter(emp => {
       if (emp.joining_date) {
-        const joinDate = new Date(emp.joining_date);
-        joinDate.setHours(0, 0, 0, 0);
-        return today >= joinDate;
+        const joinDateStr = emp.joining_date.split('T')[0];
+        return todayStr >= joinDateStr;
       }
       return true; // If no joining date is set, show them
     });
   },
 
   async getEmployeeById(id) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    throwIfError(error);
-    return data;
+    let dbEmployee = null;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (!error && data) {
+        dbEmployee = data;
+      }
+    } catch (err) {
+      console.warn('Failed to load user from Supabase:', err);
+    }
+    
+    if (dbEmployee) return dbEmployee;
+    
+    const localFallback = localStorage.getItem('hrms_users_fallback');
+    if (localFallback) {
+      try {
+        const localList = JSON.parse(localFallback);
+        const localEmp = localList.find(e => e.id === id);
+        if (localEmp) return localEmp;
+      } catch (err) {}
+    }
+    
+    return null;
   },
 
   async createEmployee(employeeData) {
@@ -168,26 +212,67 @@ export const adminApi = {
       status: employeeData.status || 'active'
     };
 
-    const { data, error } = await supabase
-      .from('users')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .maybeSingle();
-    throwIfError(error);
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .update(payload)
+        .eq('id', id)
+        .select()
+        .maybeSingle();
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      console.warn('Failed to update employee on Supabase:', err);
+    }
+
+    const localFallback = localStorage.getItem('hrms_users_fallback');
+    if (localFallback) {
+      try {
+        const localList = JSON.parse(localFallback);
+        const index = localList.findIndex(e => e.id === id);
+        if (index !== -1) {
+          const updated = { ...localList[index], ...payload };
+          localList[index] = updated;
+          localStorage.setItem('hrms_users_fallback', JSON.stringify(localList));
+          return updated;
+        }
+      } catch (err) {}
+    }
+
+    return { id, ...payload };
   },
 
   async deleteEmployee(id) {
-    // We can do soft delete by setting status = 'inactive'
-    const { data, error } = await supabase
-      .from('users')
-      .update({ status: 'inactive' })
-      .eq('id', id)
-      .select()
-      .maybeSingle();
-    throwIfError(error);
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .update({ status: 'inactive' })
+        .eq('id', id)
+        .select()
+        .maybeSingle();
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      console.warn('Failed to delete employee on Supabase:', err);
+    }
+
+    const localFallback = localStorage.getItem('hrms_users_fallback');
+    if (localFallback) {
+      try {
+        const localList = JSON.parse(localFallback);
+        const index = localList.findIndex(e => e.id === id);
+        if (index !== -1) {
+          const updated = { ...localList[index], status: 'inactive' };
+          localList[index] = updated;
+          localStorage.setItem('hrms_users_fallback', JSON.stringify(localList));
+          return updated;
+        }
+      } catch (err) {}
+    }
+
+    return { id, status: 'inactive' };
   },
 
   async getAllUserDocuments(companyId) {

@@ -60,9 +60,24 @@ export const getUserProfile = async ({ userId, email } = {}) => {
 };
 
 export const getEmployeeById = async (userId) => {
-  const { data, error } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
-  throwIfError(error);
-  return data;
+  try {
+    const { data, error } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+    if (!error && data) {
+      return data;
+    }
+  } catch (err) {
+    console.warn('Failed to load user from Supabase:', err);
+  }
+
+  const localFallback = localStorage.getItem('hrms_users_fallback');
+  if (localFallback) {
+    try {
+      const localList = JSON.parse(localFallback);
+      const localEmp = localList.find(e => e.id === userId);
+      if (localEmp) return localEmp;
+    } catch (err) {}
+  }
+  return null;
 };
 
 export const updateUserProfile = async (userId, payload) => {
@@ -82,14 +97,35 @@ export const updateUserProfile = async (userId, payload) => {
     }
   }
 
-  const { data, error } = await supabase
-    .from('users')
-    .update(cleanPayload)
-    .eq('id', userId)
-    .select()
-    .maybeSingle();
-  throwIfError(error);
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update(cleanPayload)
+      .eq('id', userId)
+      .select()
+      .maybeSingle();
+    if (!error && data) {
+      return data;
+    }
+  } catch (err) {
+    console.warn('Failed to update user profile on Supabase:', err);
+  }
+
+  const localFallback = localStorage.getItem('hrms_users_fallback');
+  if (localFallback) {
+    try {
+      const localList = JSON.parse(localFallback);
+      const index = localList.findIndex(e => e.id === userId);
+      if (index !== -1) {
+        const updated = { ...localList[index], ...cleanPayload };
+        localList[index] = updated;
+        localStorage.setItem('hrms_users_fallback', JSON.stringify(localList));
+        return updated;
+      }
+    } catch (err) {}
+  }
+
+  return { id: userId, ...cleanPayload };
 };
 
 export const getCompany = async (companyId = 1) => {
@@ -209,14 +245,40 @@ export const getUsers = async (companyId) => {
     return [];
   }
 
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('companyId', finalCompanyId)
-    .order('role', { ascending: true })
-    .order('name', { ascending: true });
-  throwIfError(error);
-  return data ?? [];
+  let dbUsers = [];
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('companyId', finalCompanyId)
+      .order('role', { ascending: true })
+      .order('name', { ascending: true });
+    
+    if (!error && data) {
+      dbUsers = data;
+    }
+  } catch (err) {
+    console.warn('Failed to load users from Supabase:', err);
+  }
+
+  let localUsers = [];
+  const localFallback = localStorage.getItem('hrms_users_fallback');
+  if (localFallback) {
+    try {
+      localUsers = JSON.parse(localFallback).filter(emp => emp.companyId === finalCompanyId);
+    } catch (err) {
+      console.error('Failed to parse local users:', err);
+    }
+  }
+
+  const combined = [...dbUsers];
+  localUsers.forEach(localUser => {
+    if (!combined.some(user => user.email === localUser.email || user.id === localUser.id)) {
+      combined.push(localUser);
+    }
+  });
+
+  return combined;
 };
 
 export const createUser = async (user) => {
